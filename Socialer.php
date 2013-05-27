@@ -34,6 +34,104 @@ class Socialer {
         add_action('socialer_ajax_is_user_registered', array( $this, 'ajax_is_user_registered' ) );
         add_action('socialer_ajax_get_register_button', array( $this, 'ajax_get_socialer_register_button' ) );
         add_action('socialer_ajax_get_tweet_box', array( $this, 'ajax_get_tweet_box' ) );
+        add_action('socialer_ajax_push_tweet', array( $this, 'ajax_push_tweet' ) );
+    }
+
+    public function ajax_push_tweet() {
+        // check if user registered
+        $response = wp_remote_retrieve_body(
+            wp_remote_request(
+                self::get_socialer_user_registered_callback_url(),
+                array(
+                    'method' => 'GET',
+                    'sslverify' => true,
+                )
+            )
+        );
+
+        $response = json_decode($response);
+
+        if ( $response && isset($response->success) && $response->success ) {
+
+            $permalink = get_permalink($_GET['post']);
+            $_POST['text'] = trim($_POST['text'], ',undefined');
+
+            $response = wp_remote_retrieve_body(
+                wp_remote_request(
+                    self::get_socialer_push_tweet_callback_url(),
+                    array(
+                        'method' => 'POST',
+                        'body' => array('text' => $_POST['text'] . ' ' . $permalink),
+                        'sslverify' => true,
+                    )
+                )
+            );
+
+            $response = json_decode($response);
+            $errors_messages = '';
+            $errors_messages_presents = false;
+
+            if ( isset($response->result) && isset($response->result->errors) ) {
+                if ( is_array($response->result->errors) ) {
+                    foreach ($response->result->errors as $error) {
+                        if ( isset($error->message) ) {
+                            $errors_messages_presents = true;
+                            $errors_messages .= '<br>- '.$error->message;
+                        }
+                    }
+                }
+            }
+
+            if ( $errors_messages_presents ) {
+                $errors_messages = '<strong>Error occurred during tweet posting!</strong>' . $errors_messages;
+                $_SESSION['soc_notices'] = $errors_messages;
+                $_SESSION['soc_notices_is_error'] = true;
+                $_SESSION['soc_last_tweet_status'] = false;
+                $_SESSION['soc_last_tweet_text'] = $_POST['text'];
+                die(json_encode(array(
+                    'message'   => self::showMessage(),
+                    'error'     => true
+                )));
+            }
+
+            // no errors - show information that all OK
+            $screen_name = '';
+            $id_str = '';
+
+            if ( $response && isset($response->result) ) {
+                if ( isset($response->result->user) && isset($response->result->user->screen_name) ) {
+                    $screen_name = $response->result->user->screen_name;
+                }
+
+                if ( isset($response->result->id_str) ) {
+                    $id_str = $response->result->id_str;
+                }
+            }
+
+            if ( $screen_name && $id_str ) {
+                $_SESSION['soc_notices'] = "Tweet Posting was successful. <a href='http://twitter.com/"
+                    . $screen_name . "/status/"
+                    . $id_str . "' target='_blank'>View Tweet</a>";
+
+                $_SESSION['soc_notices_is_error'] = false;
+                $_SESSION['soc_last_tweet_status'] = true;
+                unset($_SESSION['soc_last_tweet_text']);
+
+                die(json_encode(array(
+                    'message'   => self::showMessage(),
+                    'success'   => true
+                )));
+            }
+
+            $_SESSION['soc_notices_is_error'] = true;
+            $_SESSION['soc_last_tweet_status'] = false;
+            $_SESSION['soc_notices'] = 'Something is wrong. Please try again later';
+
+            die(json_encode(array(
+                'message'   => self::showMessage(),
+                'error'     => true
+            )));
+        }
     }
 
     public function push_tweet() {
@@ -134,9 +232,9 @@ class Socialer {
             $errormsg = !(isset($_SESSION['soc_last_tweet_status']) && $_SESSION['soc_last_tweet_status']);
 
             if ($errormsg) {
-                $messages = '<div id="socialer-message" class="error" style="padding: 8px">';
+                $messages = '<div class="error" style="padding: 8px">';
             } else {
-                $messages = '<div id="socialer-message" class="updated" style="padding: 8px">';
+                $messages = '<div class="updated" style="padding: 8px">';
             }
 
             $messages .= $_SESSION['soc_notices'] . "</div>";
@@ -192,8 +290,8 @@ class Socialer {
         ?>
         <script type="text/javascript" src="<?php echo site_url( '/wp-includes/js/jquery/jquery.js' ) ?>"></script>
         <script type="text/javascript" src="<?php echo plugins_url( 'js/socialer.js', __FILE__ ) .'?v='.self::JS_VERSION ?>"></script>
-        <?php echo self::showMessage() ?>
-        <div id="socialer-container">
+        <div id="socialer-container" style="display: none"></div>
+        <div id="socialer-container-wait" style="display: none">
             <br>
             <img src="<?php echo plugins_url( 'js/img/ajax-loader.gif', __FILE__ ) ?>" />
         </div>
@@ -202,8 +300,8 @@ class Socialer {
              id="alljs-dispatcher-socialer"
              data-function="alljs.socialer.get_correct_box"
              data-base-url="<?php echo plugins_url( 'socialer_ajax.php?action=', __FILE__ ) ?>"
-             <?php if (get_the_ID()): ?>
-             data-post-id="<?php echo get_the_ID() ?>"
+             <?php if (@$_GET['post']): ?>
+             data-post-id="<?php echo @$_GET['post'] ?>"
              <?php endif ?>
         ></div>
         <?php
@@ -215,16 +313,22 @@ class Socialer {
         $post_title = '';
         if (@$_GET['post']) {
             $permalink = get_permalink($_GET['post']);
-            $tweet_maxlen = 140 - mb_strlen($permalink);
+            $tweet_maxlen = 140 - mb_strlen($permalink) - 1;
             $post_title = get_the_title($_GET['post']);
         }
         ?>
         <br>
         <div id="socialer-tweet-box" class="postbox ">
-            <div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle"><span>Socialer Tweet Box</span></h3>
+            <div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle">
+                <span>
+                    <img style="width: 16px; height: 16px;" src="<?php echo plugins_url( 'js/img/twitter-bird-light-bgs.png', __FILE__ ) ?>" />
+                    Socialer Tweet Box
+                </span>
+            </h3>
             <div class="inside">
                 <div class="tagsdiv" id="post_tweet_box">
                     <div class="jaxtag">
+                        <div id="socialer-message"><?php echo self::showMessage() ?></div>
                         <p>Enter tweet text without URL:</p>
                         <textarea
                             name="socialer_tweet_body"
@@ -242,12 +346,23 @@ class Socialer {
         }
     }
 ?></textarea>
-                        <p class="howto">Maximum <?php echo $tweet_maxlen ?> characters.
+                        <p class="howto">Maximum <?php echo $tweet_maxlen ?> characters. Available: <span id="socialer-tweet-chars-left"></span>.
                             Permalink will be added to message automatically
-                            <?php if ($permalink): ?>
+                            <?php if (@$_GET['post']): ?>
                             ( <?php echo $permalink ?> )
                             <?php else: ?>
                                 when post will be published.
+                            <?php endif ?>
+                        </p>
+                        <p>
+                            <a class="button button-primary" href="<?php echo self::get_socialer_register_url(false) ?>" target="_blank">
+                                Go to Dashboard
+                            </a>
+                            <?php if (@$_GET['post']): ?>
+                            <a class="button button-primary" id="socialer-ajax-push-tweet">
+                                Send Tweet
+                            </a>
+                                <img style="display: none" id="socialer-ajax-push-tweet-wait" src="<?php echo plugins_url( 'js/img/ajax-loader.gif', __FILE__ ) ?>" />
                             <?php endif ?>
                         </p>
                     </div>
@@ -260,17 +375,22 @@ class Socialer {
     public function ajax_get_socialer_register_button() {
         ?>
         <br>
-        <div id="socialer-register-box" class="postbox " style="width: 50%">
+        <div id="socialer-register-box" class="postbox " style="width: 100%">
             <div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle"><span>Socialer Tweet Box</span></h3>
             <div class="inside">
                 <div class="tagsdiv" id="post_tweet_box">
                     <div class="jaxtag">
-                        <a class="button button-primary" href="<?php echo self::get_socialer_register_url() ?>" target="_blank">
+                        <a
+                            id="socialer-register-button"
+                            class="button button-primary"
+                            data-url="<?php echo self::get_socialer_register_url() ?>"
+                        >
                             Register in Socialer
                         </a>
                     </div>
                 </div>
             </div>
+            <div class="alljs-dispatcher" data-function="alljs.socialer.bind_register_modal"></div>
         </div>
         <?php
     }
@@ -295,10 +415,20 @@ class Socialer {
     }
 
     /**
+     * TODO: build utms method
+     * @param bool $add_utm
      * @return string
      */
-    public function get_socialer_register_url() {
-        return self::get_option('SOCIALER_URL') . '?sig=' . self::generate_socialer_signature(array());
+    public function get_socialer_register_url( $add_utm = true ) {
+        $url =  self::get_option('SOCIALER_URL')
+                . '?sig='
+                . self::generate_socialer_signature(array());
+
+        if ( $add_utm ) {
+            $url .= '&utm_source=wp_soc_plugin&utm_term=register';
+        }
+
+        return $url;
     }
 
     /**

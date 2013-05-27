@@ -4,7 +4,7 @@
  */
 'use strict';
 
-var alljs = alljs || [];
+var alljs = alljs || {};
 
 //-----------------------------------------------------------------------------
 
@@ -104,26 +104,6 @@ alljs.system.dispatch = function ( container ) {
     });
 };
 
-alljs.system.showElement = function(obj, mode) {
-    var elem = typeof obj === "string" ? jQuery(obj) : obj;
-
-    if (elem) {
-        if (!mode) {
-            if (!elem.is(':visible')) {
-                elem.show();
-            } else {
-                elem.hide();
-            }
-        } else {
-            if (mode == 1) {
-                elem.show();
-            } else {
-                elem.hide();
-            }
-        }
-    }
-};
-
 //-----------------------------------------------------------------------------
 // decoding array values from string
 Array.prototype.fromString = function ( str ) {
@@ -140,6 +120,9 @@ Array.prototype.fromString = function ( str ) {
 alljs.socialer = alljs.socialer || {};
 
 alljs.socialer.get_correct_box = function() {
+    jQuery('#socialer-container-wait').show();
+    jQuery('#socialer-container').hide();
+
     var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
     jQuery.ajax({
         url: base_request_url + 'is_user_registered',
@@ -162,6 +145,9 @@ alljs.socialer.get_register_button = function() {
     })
     .done(function(response) {
         jQuery('#socialer-container').html(response);
+        jQuery('#socialer-container-wait').hide();
+        jQuery('#socialer-container').show();
+        alljs.socialer.bind_register_modal();
     });
 };
 
@@ -174,6 +160,73 @@ alljs.socialer.get_tweet_box = function() {
     })
     .done(function(response) {
         jQuery('#socialer-container').html(response);
+        jQuery('#socialer-container-wait').hide();
+        jQuery('#socialer-container').show();
+        alljs.socialer.bind_ajax_push_tweet();
+        alljs.socialer.count_tweet_characters();
+    });
+};
+
+alljs.socialer.bind_ajax_push_tweet = function() {
+    jQuery('#socialer-ajax-push-tweet').unbind();
+    jQuery('#socialer-ajax-push-tweet').bind('click', function(){
+        var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
+        var post_id = jQuery('#alljs-dispatcher-socialer').data('post-id');
+
+        jQuery('#socialer-ajax-push-tweet-wait').show();
+        jQuery('#socialer-ajax-push-tweet').unbind();
+        jQuery('#socialer-ajax-push-tweet').attr('disabled', 'disabled');
+        jQuery('#socialer-message').hide();
+        jQuery.ajax({
+            url: base_request_url + 'push_tweet' + (post_id ? ('&post=' + post_id) : ''),
+            dataType: 'json',
+            type: 'post',
+            data: {
+                text: jQuery('#socialer-tweet-body').val()
+            },
+            success: function(response) {
+                jQuery('#socialer-message').show();
+                jQuery('#socialer-message').html(response.message);
+                jQuery('#socialer-ajax-push-tweet-wait').hide();
+                jQuery('#socialer-ajax-push-tweet').removeAttr('disabled');
+                alljs.socialer.bind_ajax_push_tweet();
+            }
+        });
+    });
+};
+
+alljs.socialer.count_tweet_characters = function() {
+    var limit = jQuery('#socialer-tweet-body').attr('maxlength');
+    jQuery('#socialer-tweet-body').unbind();
+    jQuery('#socialer-tweet-body').bind('keyup', function(){
+        var available = limit - jQuery('#socialer-tweet-body').val().length;
+        jQuery('#socialer-tweet-chars-left').html(available);
+        if ( available < 0 ) {
+            jQuery('#socialer-tweet-chars-left').css('color', 'red');
+            jQuery('#socialer-ajax-push-tweet').unbind();
+            jQuery('#socialer-ajax-push-tweet').attr('disabled', 'disabled');
+        } else {
+            jQuery('#socialer-tweet-chars-left').css('color', 'grey');
+            alljs.socialer.bind_ajax_push_tweet();
+            jQuery('#socialer-ajax-push-tweet').removeAttr('disabled');
+        }
+    });
+    jQuery('#socialer-tweet-body').trigger('keyup');
+};
+
+alljs.socialer.bind_register_modal = function() {
+    jQuery('#socialer-register-button').unbind();
+    jQuery('#socialer-register-button').bind('click', function(){
+
+        var url = jQuery('#socialer-register-button').data('url');
+        var popup = window.open(url, '', 'width=750,height=600');
+        var timer = setInterval(checkChild, 200);
+        function checkChild() {
+            if (popup.closed) {
+                alljs.socialer.get_correct_box();
+                clearInterval(timer);
+            }
+        }
     });
 };
 

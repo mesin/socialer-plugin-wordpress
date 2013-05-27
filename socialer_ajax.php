@@ -30,7 +30,8 @@ $action = esc_attr( $_REQUEST['action'] );
 $allowed_actions = array(
     'is_user_registered',
     'get_register_button',
-    'get_tweet_box'
+    'get_tweet_box',
+    'push_tweet',
 );
 
 if( in_array($action, $allowed_actions) ) {
