@@ -201,6 +201,9 @@ alljs.socialer.count_tweet_characters = function() {
     jQuery('#socialer-tweet-body').bind('keyup', function(){
         var available = limit - jQuery('#socialer-tweet-body').val().length;
         jQuery('#socialer-tweet-chars-left').html(available);
+
+        return; // we send 118 chars in tweet including URL - 22 chars
+
         if ( available < 0 ) {
             jQuery('#socialer-tweet-chars-left').css('color', 'red');
             jQuery('#socialer-ajax-push-tweet').unbind();

@@ -16,6 +16,11 @@ class Socialer {
     const SIGNATURE_LIFETIME = 3600;
 
     /**
+     * https://dev.twitter.com/docs/api/1.1/get/help/configuration
+     */
+    const CHARACTERS_RESERVED_PER_MEDIA = 23;
+
+    /**
      * @var array
      */
     protected static $options = array();
@@ -54,6 +59,7 @@ class Socialer {
         if ( $response && isset($response->success) && $response->success ) {
 
             $permalink = get_permalink($_GET['post']);
+            //$permalink = 'https://github.com/doctor-demon/alljs/blob/master/google-code-prettify/js-modules/';
             $_POST['text'] = trim($_POST['text'], ',undefined');
 
             $response = wp_remote_retrieve_body(
@@ -81,6 +87,7 @@ class Socialer {
                     }
                 }
             }
+            //$errors_messages .= $_POST['text'] . ' ' . $permalink;
 
             if ( $errors_messages_presents ) {
                 $errors_messages = '<strong>Error occurred during tweet posting!</strong>' . $errors_messages;
@@ -309,11 +316,10 @@ class Socialer {
 
     public function ajax_get_tweet_box() {
         $permalink = '';
-        $tweet_maxlen = 100;
+        $tweet_maxlen = 140 - self::CHARACTERS_RESERVED_PER_MEDIA;
         $post_title = '';
         if (@$_GET['post']) {
             $permalink = get_permalink($_GET['post']);
-            $tweet_maxlen = 140 - mb_strlen($permalink) - 1;
             $post_title = get_the_title($_GET['post']);
         }
         ?>
@@ -355,9 +361,9 @@ class Socialer {
                             <?php endif ?>
                         </p>
                         <p>
-                            <a class="button button-primary" href="<?php echo self::get_socialer_register_url(false) ?>" target="_blank">
+                            <!--a class="button button-primary" href="<?php echo self::get_socialer_register_url(false) ?>" target="_blank">
                                 Go to Dashboard
-                            </a>
+                            </a-->
                             <?php if (@$_GET['post']): ?>
                             <a class="button button-primary" id="socialer-ajax-push-tweet">
                                 Send Tweet
