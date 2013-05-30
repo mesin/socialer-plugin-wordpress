@@ -3,7 +3,7 @@
 <div id="socialer-container" style="display: none"></div>
 <div id="socialer-container-wait" style="display: none">
     <br>
-    <img src="<?php echo $this->js_plugin_base_url . 'img/ajax-loader.gif' ?>" />
+    <img src="<?php echo $this->img_plugin_base_url . 'ajax-loader.gif' ?>" />
 </div>
 <div style="display: none"
     class="alljs-dispatcher"

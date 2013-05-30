@@ -2,7 +2,7 @@
 <div id="socialer-tweet-box" class="postbox ">
     <div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle">
                 <span>
-                    <img style="width: 16px; height: 16px;" src="<?php echo $this->js_plugin_base_url . 'img/twitter-bird-light-bgs.png' ?>" />
+                    <img style="width: 16px; height: 16px;" src="<?php echo $this->img_plugin_base_url . 'twitter-bird-light-bgs.png' ?>" />
                     Socialer Tweet Box
                 </span>
     </h3>
@@ -43,7 +43,7 @@
                         <a class="button button-primary" id="socialer-ajax-push-tweet">
                             Send Tweet
                         </a>
-                        <img style="display: none" id="socialer-ajax-push-tweet-wait" src="<?php echo $this->js_plugin_base_url . 'img/ajax-loader.gif' ?>" />
+                        <img style="display: none" id="socialer-ajax-push-tweet-wait" src="<?php echo $this->img_plugin_base_url . 'ajax-loader.gif' ?>" />
                     <?php endif ?>
                 </p>
             </div>
