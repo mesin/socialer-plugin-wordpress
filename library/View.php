@@ -10,6 +10,22 @@ class Socialer_View {
     protected $vars = array();
 
     /**
+     * @var string
+     */
+    protected $views_dir = 'views/';
+
+    /**
+     * @param $dir
+     */
+    public function setViewsDirectory( $dir ) {
+        $this->views_dir = $dir;
+    }
+
+    public function clearVars() {
+        $this->vars = array();
+    }
+
+    /**
      * @param string $name
      * @param mixed $value
      */
@@ -24,7 +40,7 @@ class Socialer_View {
      */
     public function render( $template_name ) {
         ob_start();
-        require $template_name;
+        require $this->views_dir . $template_name;
         $result = ob_get_clean();
         return $result;
     }

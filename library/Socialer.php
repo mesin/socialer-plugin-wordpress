@@ -8,8 +8,8 @@
 
 session_start();
 
-require_once('library/Crypt.php');
-require_once('library/View.php');
+require_once('Crypt.php');
+require_once('View.php');
 
 class Socialer {
 
@@ -298,7 +298,7 @@ class Socialer {
      *  Finding out if user is registered and showing tweet box or register button
      */
     public function show_tweet_box_or_register_button() {
-        echo self::$view->render('views/tweet_box_or_register_button.php');
+        echo self::$view->render('tweet_box_or_register_button.php');
     }
 
     public function ajax_get_tweet_box() {
@@ -313,12 +313,12 @@ class Socialer {
         self::$view->assign('permalink', $permalink);
         self::$view->assign('tweet_maxlen', $tweet_maxlen);
         self::$view->assign('post_title', $post_title);
-        echo self::$view->render('views/tweet_box.php');
+        echo self::$view->render('tweet_box.php');
     }
 
     public function ajax_get_socialer_register_button() {
         self::$view->assign('socialer_register_url', self::get_socialer_register_url());
-        echo self::$view->render('views/socialer_register_button.php');
+        echo self::$view->render('socialer_register_button.php');
     }
 
     /**
@@ -387,14 +387,15 @@ class Socialer {
      */
     public function __construct() {
         if ( empty(self::$options) ) {
-            self::$options = require('configs/socialer_options.php');
+            self::$options = require('/../configs/socialer_options.php');
         }
 
         self::$view = new Socialer_View();
-        self::$view->assign('js_base_url', site_url( '/wp-includes/js/', __FILE__));
-        self::$view->assign('js_plugin_base_url', plugins_url( 'js/', __FILE__));
-        self::$view->assign('img_plugin_base_url', plugins_url( 'img/', __FILE__));
-        self::$view->assign('plugin_base_url', plugins_url( '/', __FILE__));
+        self::$view->setViewsDirectory('/../views/');
+        self::$view->assign('js_base_url',              site_url( '/wp-includes/js/', SOCIALER_PLUGIN_BASE_FILE));
+        self::$view->assign('js_plugin_base_url',       plugins_url( 'js/', SOCIALER_PLUGIN_BASE_FILE));
+        self::$view->assign('img_plugin_base_url',      plugins_url( 'img/', SOCIALER_PLUGIN_BASE_FILE));
+        self::$view->assign('plugin_base_url',          plugins_url( '/', SOCIALER_PLUGIN_BASE_FILE));
     }
 
     /**
