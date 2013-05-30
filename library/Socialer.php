@@ -72,6 +72,50 @@ class Socialer {
     }
 
     /**
+     *  This method is used both for adding new schedule and updating existing
+     *  // TODO: what if link does not exists yet?
+     */
+    public function ajax_schedule_tweet() {
+        self::$view->clearVars();
+
+        if ( !isset($_POST['post_id']) || !$_POST['post_id'] ) {
+            self::$view->assign('error', true);
+            self::$view->assign('message', 'Bad post_id');
+            die(self::$view->getJSON());
+        }
+
+        if ( !isset($_POST['text']) || !$_POST['text'] ) {
+            self::$view->assign('error', true);
+            self::$view->assign('message', 'Empty tweet');
+            die(self::$view->getJSON());
+        }
+
+        if ( !isset($_POST['permalink']) || !$_POST['permalink'] ) {
+            self::$view->assign('error', true);
+            self::$view->assign('message', 'Permalink does not exists!');
+            die(self::$view->getJSON());
+        }
+
+        // check if user registered
+        $response = wp_remote_retrieve_body(
+            wp_remote_request(
+                self::get_socialer_scheduled_tweet_url(),
+                array(
+                    'method' => 'POST',
+                    'sslverify' => true,
+                    'body' => array(
+                        'post_id'       => $_POST['post_id'],
+                        'text'          => $_POST['text'],
+                        'permalink'     => $_POST['permalink'],
+                    ),
+                )
+            )
+        );
+
+        die($response);
+    }
+
+    /**
      * @return string
      */
     public function get_socialer_scheduled_tweet_url() {

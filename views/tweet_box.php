@@ -10,7 +10,7 @@
         <div class="tagsdiv" id="post_tweet_box">
             <div class="jaxtag">
                 <div id="socialer-message"><?php echo Socialer::showMessage() ?></div>
-                <div id="socialer-custom-messages" class="updated"></div>
+                <div id="socialer-custom-messages" class="updated" style="display: none; padding: 8px;"></div>
                 <p>Enter tweet text without URL:</p>
                 <textarea
                     name="socialer_tweet_body"

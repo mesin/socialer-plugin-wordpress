@@ -133,13 +133,22 @@ alljs.socialer.get_scheduled_tweet = function(callback) {
         success: function(response) {
             if ( response.success && response.result && response.result.tweet ) {
                 jQuery('#socialer-tweet-body').val(response.result.tweet);
-                jQuery('#socialer-custom-messages').html('This tweet has been scheduled');
+                alljs.socialer.show_custom_message('This tweet has been scheduled');
             }
             if ( typeof callback === 'function') {
                 callback();
             }
         }
     });
+};
+
+alljs.socialer.show_custom_message = function(msg) {
+    jQuery('#socialer-custom-messages').html(msg);
+    jQuery('#socialer-custom-messages').show();
+};
+
+alljs.socialer.hide_custom_message = function() {
+    jQuery('#socialer-custom-messages').hide();
 };
 
 alljs.socialer.get_correct_box = function() {
