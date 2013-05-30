@@ -15,6 +15,18 @@ class Socialer_View {
     protected $views_dir = 'views/';
 
     /**
+     * @return Socialer_View
+     */
+    public function getInstance() {
+        static $i = null;
+        if ( null === $i ) {
+            $i = new self;
+        }
+
+        return $i;
+    }
+
+    /**
      * @param $dir
      */
     public function setViewsDirectory( $dir ) {
@@ -43,6 +55,13 @@ class Socialer_View {
         require $this->views_dir . $template_name;
         $result = ob_get_clean();
         return $result;
+    }
+
+    /**
+     * @return mixed|string|void
+     */
+    public function getJSON() {
+        return json_encode($this->vars);
     }
 
     /**

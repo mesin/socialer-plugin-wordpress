@@ -48,6 +48,9 @@ class Socialer {
     }
 
     public function ajax_push_tweet() {
+
+        self::$view->clearVars();
+
         // check if user registered
         $response = wp_remote_retrieve_body(
             wp_remote_request(
@@ -99,10 +102,10 @@ class Socialer {
                 $_SESSION['soc_notices_is_error'] = true;
                 $_SESSION['soc_last_tweet_status'] = false;
                 $_SESSION['soc_last_tweet_text'] = $_POST['text'];
-                die(json_encode(array(
-                    'message'   => self::showMessage(),
-                    'error'     => true
-                )));
+
+                self::$view->assign('message',  self::showMessage());
+                self::$view->assign('error',    true);
+                die(self::$view->getJSON());
             }
 
             // no errors - show information that all OK
@@ -128,20 +131,18 @@ class Socialer {
                 $_SESSION['soc_last_tweet_status'] = true;
                 unset($_SESSION['soc_last_tweet_text']);
 
-                die(json_encode(array(
-                    'message'   => self::showMessage(),
-                    'success'   => true
-                )));
+                self::$view->assign('message',  self::showMessage());
+                self::$view->assign('success',  true);
+                die(self::$view->getJSON());
             }
 
             $_SESSION['soc_notices_is_error'] = true;
             $_SESSION['soc_last_tweet_status'] = false;
             $_SESSION['soc_notices'] = 'Something is wrong. Please try again later';
 
-            die(json_encode(array(
-                'message'   => self::showMessage(),
-                'error'     => true
-            )));
+            self::$view->assign('message',  self::showMessage());
+            self::$view->assign('error',    true);
+            die(self::$view->getJSON());
         }
     }
 
