@@ -119,7 +119,7 @@ Array.prototype.fromString = function ( str ) {
 
 alljs.socialer = alljs.socialer || {};
 
-alljs.socialer.get_scheduled_tweet = function() {
+alljs.socialer.get_scheduled_tweet = function(callback) {
     var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
     var post_id = jQuery('#alljs-dispatcher-socialer').data('post-id');
 
@@ -129,9 +129,16 @@ alljs.socialer.get_scheduled_tweet = function() {
         type: 'post',
         data: {
             post_id: post_id
+        },
+        success: function(response) {
+            if ( response.success && response.result && response.result.tweet ) {
+                jQuery('#socialer-tweet-body').val(response.result.tweet);
+                jQuery('#socialer-custom-messages').html('This tweet has been scheduled');
+            }
+            if ( typeof callback === 'function') {
+                callback();
+            }
         }
-    }).done(function(response) {
-
     });
 };
 
@@ -176,8 +183,10 @@ alljs.socialer.get_tweet_box = function() {
     })
     .done(function(response) {
         jQuery('#socialer-container').html(response);
-        jQuery('#socialer-container-wait').hide();
-        jQuery('#socialer-container').show();
+        alljs.socialer.get_scheduled_tweet(function(){
+            jQuery('#socialer-container-wait').hide();
+            jQuery('#socialer-container').show();
+        });
         alljs.socialer.bind_ajax_push_tweet();
         alljs.socialer.count_tweet_characters();
     });

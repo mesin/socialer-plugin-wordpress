@@ -44,7 +44,40 @@ class Socialer {
         add_action('socialer_ajax_get_register_button', array( $this, 'ajax_get_socialer_register_button' ) );
         add_action('socialer_ajax_get_tweet_box', array( $this, 'ajax_get_tweet_box' ) );
         add_action('socialer_ajax_push_tweet', array( $this, 'ajax_push_tweet' ) );
-        add_action('socialer_ajax_get_scheduled_tweet', array( $this, 'get_scheduled_tweet' ) );
+        add_action('socialer_ajax_get_scheduled_tweet', array( $this, 'ajax_get_scheduled_tweet' ) );
+    }
+
+    public function ajax_get_scheduled_tweet() {
+        self::$view->clearVars();
+
+        if ( !isset($_POST['post_id']) || !$_POST['post_id'] ) {
+            self::$view->assign('error', true);
+            self::$view->assign('message', 'Bad post_id');
+            die(self::$view->getJSON());
+        }
+
+        // check if user registered
+        $response = wp_remote_retrieve_body(
+            wp_remote_request(
+                self::get_socialer_scheduled_tweet_url(),
+                array(
+                    'method' => 'POST',
+                    'sslverify' => true,
+                    'body' => array('post_id' => $_POST['post_id']),
+                )
+            )
+        );
+
+        die($response);
+    }
+
+    /**
+     * @return string
+     */
+    public function get_socialer_scheduled_tweet_url() {
+        return self::get_option('SOCIALER_URL')
+                . self::get_option('SOCIALER_SCHEDULED_TWEET_CALLBACK')
+                . '?sig=' . self::generate_socialer_signature(array());
     }
 
     public function ajax_push_tweet() {
@@ -361,7 +394,7 @@ class Socialer {
     /**
      * @return string
      */
-    protected function get_socialer_user_registered_callback_url() {
+    public function get_socialer_user_registered_callback_url() {
         return self::get_option('SOCIALER_URL')
                . self::get_option('SOCIALER_USER_REGISTERED_CALLBACK')
                . '?sig=' . self::generate_socialer_signature(array());
@@ -370,7 +403,7 @@ class Socialer {
     /**
      * @return string
      */
-    protected function get_socialer_push_tweet_callback_url() {
+    public function get_socialer_push_tweet_callback_url() {
         return self::get_option('SOCIALER_URL')
                . self::get_option('SOCIALER_PUSH_TWEET_CALLBACK')
                . '?sig=' . self::generate_socialer_signature(array());
