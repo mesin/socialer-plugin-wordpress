@@ -119,6 +119,22 @@ Array.prototype.fromString = function ( str ) {
 
 alljs.socialer = alljs.socialer || {};
 
+alljs.socialer.get_scheduled_tweet = function() {
+    var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
+    var post_id = jQuery('#alljs-dispatcher-socialer').data('post-id');
+
+    jQuery.ajax({
+        url: base_request_url + 'get_scheduled_tweet',
+        dataType: 'json',
+        type: 'post',
+        data: {
+            post_id: post_id
+        }
+    }).done(function(response) {
+
+    });
+};
+
 alljs.socialer.get_correct_box = function() {
     jQuery('#socialer-container-wait').show();
     jQuery('#socialer-container').hide();
@@ -201,10 +217,8 @@ alljs.socialer.count_tweet_characters = function() {
     jQuery('#socialer-tweet-body').bind('keyup', function(){
         var available = limit - jQuery('#socialer-tweet-body').val().length;
         jQuery('#socialer-tweet-chars-left').html(available);
-
-        return; // we send 118 chars in tweet including URL - 22 chars
-
-        if ( available < 0 ) {
+        // we send 118 chars in tweet including URL - 22 chars
+        /*if ( available < 0 ) {
             jQuery('#socialer-tweet-chars-left').css('color', 'red');
             jQuery('#socialer-ajax-push-tweet').unbind();
             jQuery('#socialer-ajax-push-tweet').attr('disabled', 'disabled');
@@ -212,7 +226,7 @@ alljs.socialer.count_tweet_characters = function() {
             jQuery('#socialer-tweet-chars-left').css('color', 'grey');
             alljs.socialer.bind_ajax_push_tweet();
             jQuery('#socialer-ajax-push-tweet').removeAttr('disabled');
-        }
+        }*/
     });
     jQuery('#socialer-tweet-body').trigger('keyup');
 };

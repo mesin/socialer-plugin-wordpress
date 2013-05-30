@@ -9,6 +9,7 @@
 session_start();
 
 require_once ( 'Crypt.php' );
+require_once ( 'View.php' );
 
 class Socialer {
 
@@ -25,9 +26,12 @@ class Socialer {
      */
     protected static $options = array();
 
+    /**
+     * @var Socialer_View
+     */
+    protected static $view = null;
+
     public function init() {
-        // showing notices if tweet error occurred
-        //add_action('edit_form_after_title', array($this, 'showMessage'));
 
         // publishing tweet
         add_action('publish_post', array('Socialer', 'push_tweet'));
@@ -40,6 +44,7 @@ class Socialer {
         add_action('socialer_ajax_get_register_button', array( $this, 'ajax_get_socialer_register_button' ) );
         add_action('socialer_ajax_get_tweet_box', array( $this, 'ajax_get_tweet_box' ) );
         add_action('socialer_ajax_push_tweet', array( $this, 'ajax_push_tweet' ) );
+        add_action('socialer_ajax_get_scheduled_tweet', array( $this, 'get_scheduled_tweet' ) );
     }
 
     public function ajax_push_tweet() {
@@ -59,7 +64,6 @@ class Socialer {
         if ( $response && isset($response->success) && $response->success ) {
 
             $permalink = get_permalink($_GET['post']);
-            //$permalink = 'https://github.com/doctor-demon/alljs/blob/master/google-code-prettify/js-modules/';
             $_POST['text'] = trim($_POST['text'], ',undefined');
 
             $response = wp_remote_retrieve_body(
@@ -294,24 +298,7 @@ class Socialer {
      *  Finding out if user is registered and showing tweet box or register button
      */
     public function show_tweet_box_or_register_button() {
-        ?>
-        <script type="text/javascript" src="<?php echo site_url( '/wp-includes/js/jquery/jquery.js' ) ?>"></script>
-        <script type="text/javascript" src="<?php echo plugins_url( 'js/socialer.js', __FILE__ ) .'?v='.self::JS_VERSION ?>"></script>
-        <div id="socialer-container" style="display: none"></div>
-        <div id="socialer-container-wait" style="display: none">
-            <br>
-            <img src="<?php echo plugins_url( 'js/img/ajax-loader.gif', __FILE__ ) ?>" />
-        </div>
-        <div style="display: none"
-             class="alljs-dispatcher"
-             id="alljs-dispatcher-socialer"
-             data-function="alljs.socialer.get_correct_box"
-             data-base-url="<?php echo plugins_url( 'socialer_ajax.php?action=', __FILE__ ) ?>"
-             <?php if (@$_GET['post']): ?>
-             data-post-id="<?php echo @$_GET['post'] ?>"
-             <?php endif ?>
-        ></div>
-        <?php
+        echo self::$view->render('views/tweet_box_or_register_button.php');
     }
 
     public function ajax_get_tweet_box() {
@@ -322,83 +309,16 @@ class Socialer {
             $permalink = get_permalink($_GET['post']);
             $post_title = get_the_title($_GET['post']);
         }
-        ?>
-        <br>
-        <div id="socialer-tweet-box" class="postbox ">
-            <div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle">
-                <span>
-                    <img style="width: 16px; height: 16px;" src="<?php echo plugins_url( 'js/img/twitter-bird-light-bgs.png', __FILE__ ) ?>" />
-                    Socialer Tweet Box
-                </span>
-            </h3>
-            <div class="inside">
-                <div class="tagsdiv" id="post_tweet_box">
-                    <div class="jaxtag">
-                        <div id="socialer-message"><?php echo self::showMessage() ?></div>
-                        <p>Enter tweet text without URL:</p>
-                        <textarea
-                            name="socialer_tweet_body"
-                            rows="3"
-                            style="width: 100%"
-                            class="the-tags"
-                            id="socialer-tweet-body"
-                            maxlength="<?php echo $tweet_maxlen ?>"
-><?php
-    if (isset($_SESSION['soc_last_tweet_status']) && $_SESSION['soc_last_tweet_status'] == false ) {
-        if (isset($_SESSION['soc_last_tweet_text'])){
-            echo $_SESSION['soc_last_tweet_text'];
-        } else {
-            echo $post_title;
-        }
-    }
-?></textarea>
-                        <p class="howto">Maximum <?php echo $tweet_maxlen ?> characters. Available: <span id="socialer-tweet-chars-left"></span>.
-                            Permalink will be added to message automatically
-                            <?php if (@$_GET['post']): ?>
-                            ( <?php echo $permalink ?> )
-                            <?php else: ?>
-                                when post will be published.
-                            <?php endif ?>
-                        </p>
-                        <p>
-                            <!--a class="button button-primary" href="<?php echo self::get_socialer_register_url(false) ?>" target="_blank">
-                                Go to Dashboard
-                            </a-->
-                            <?php if (@$_GET['post']): ?>
-                            <a class="button button-primary" id="socialer-ajax-push-tweet">
-                                Send Tweet
-                            </a>
-                                <img style="display: none" id="socialer-ajax-push-tweet-wait" src="<?php echo plugins_url( 'js/img/ajax-loader.gif', __FILE__ ) ?>" />
-                            <?php endif ?>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php
+
+        self::$view->assign('permalink', $permalink);
+        self::$view->assign('tweet_maxlen', $tweet_maxlen);
+        self::$view->assign('post_title', $post_title);
+        echo self::$view->render('views/tweet_box.php');
     }
 
     public function ajax_get_socialer_register_button() {
-        ?>
-        <br>
-        <div id="socialer-register-box" class="postbox " style="width: 100%">
-            <div class="handlediv" title="Click to toggle"><br></div><h3 class="hndle"><span>Socialer Tweet Box</span></h3>
-            <div class="inside">
-                <div class="tagsdiv" id="post_tweet_box">
-                    <div class="jaxtag">
-                        <a
-                            id="socialer-register-button"
-                            class="button button-primary"
-                            data-url="<?php echo self::get_socialer_register_url() ?>"
-                        >
-                            Register in Socialer
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="alljs-dispatcher" data-function="alljs.socialer.bind_register_modal"></div>
-        </div>
-        <?php
+        self::$view->assign('socialer_register_url', self::get_socialer_register_url());
+        echo self::$view->render('views/socialer_register_button.php');
     }
 
     /**
@@ -469,6 +389,11 @@ class Socialer {
         if ( empty(self::$options) ) {
             self::$options = require ( 'socialer_options.php' );
         }
+
+        self::$view = new Socialer_View();
+        self::$view->assign('js_base_url', site_url( '/wp-includes/js/', __FILE__));
+        self::$view->assign('js_plugin_base_url', plugins_url( 'js/', __FILE__));
+        self::$view->assign('plugin_base_url', plugins_url( '/', __FILE__));
     }
 
     /**

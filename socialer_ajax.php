@@ -32,6 +32,7 @@ $allowed_actions = array(
     'get_register_button',
     'get_tweet_box',
     'push_tweet',
+    'get_scheduled_tweet',
 );
 
 if( in_array($action, $allowed_actions) ) {
