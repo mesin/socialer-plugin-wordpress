@@ -22,6 +22,7 @@ class Socialer {
     const CHARACTERS_RESERVED_PER_MEDIA = 23;
 
     const POST_STATUS_FUTURE = 'future';
+    const POST_STATUS_PUBLISHED = 'publish';
     const TWEET_TYPE_IMMEDIATELY = '';
     const TWEET_TYPE_SCHEDULE = 'on';
 
@@ -36,7 +37,6 @@ class Socialer {
     protected static $view = null;
 
     public function init() {
-
         // publishing tweet
         add_action('save_post', array($this, 'push_tweet'));
         //add_action('publish_post', array($this, 'push_tweet'));
@@ -128,8 +128,8 @@ class Socialer {
     public function schedule_tweet() {
 
         $postObj = get_post(get_the_ID());
-        $post_time = strtotime($postObj->post_date);
-        $delay = $post_time + $_POST['socialer-tweet-delay'] * 60;
+        $post_time = strtotime($_POST['post_date']) - time();
+        $delay = $post_time + $_POST['socialer-tweet-delay'] * 60 * 60;
 
         $response = wp_remote_retrieve_body(
             wp_remote_request(
@@ -299,15 +299,18 @@ class Socialer {
 
         $postObj = get_post(get_the_ID());
 
-        if ( $postObj->post_status == self::POST_STATUS_FUTURE ) {
+        if (
+            $postObj->post_status == self::POST_STATUS_FUTURE
+            || strtotime($_POST['post_date']) > time()
+        ) {
             if ( $_POST['socialer-tweet-type'] == self::TWEET_TYPE_SCHEDULE ) {
                 $this->schedule_tweet();
-                return;
             } else {
                 // if we checked of schedule checkbox - then tweet have to be removed
                 $this->unschedule_tweet();
-                return;
             }
+            // ANYWAY if post is scheduled - we do not need to send tweet
+            return;
         }
 
         // check if user registered

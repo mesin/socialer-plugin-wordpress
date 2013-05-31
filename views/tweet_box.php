@@ -37,7 +37,7 @@
                     <?php endif ?>
                 </p>
                 <p>
-                    <?php if (@$_GET['post']): ?>
+                    <?php if ( @get_post(get_the_ID())->post_status == Socialer::POST_STATUS_PUBLISHED ): ?>
                         <a class="button button-primary" id="socialer-ajax-push-tweet">
                             Send Tweet Right Now
                         </a>

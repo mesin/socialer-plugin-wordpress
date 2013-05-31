@@ -115,6 +115,23 @@ Array.prototype.fromString = function ( str ) {
     }
 };
 
+Date.prototype.getMonthName = function(lang) {
+    lang = lang && (lang in Date.locale) ? lang : 'en';
+    return Date.locale[lang].month_names[this.getMonth()];
+};
+
+Date.prototype.getMonthNameShort = function(lang) {
+    lang = lang && (lang in Date.locale) ? lang : 'en';
+    return Date.locale[lang].month_names_short[this.getMonth()];
+};
+
+Date.locale = {
+    en: {
+        month_names: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+        month_names_short: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    }
+};
+
 //-----------------------------------------------------------------------------
 
 alljs.socialer = alljs.socialer || {};
@@ -122,6 +139,7 @@ alljs.socialer = alljs.socialer || {};
 alljs.socialer.get_scheduled_tweet = function(callback) {
     var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
     var post_id = jQuery('#alljs-dispatcher-socialer').data('post-id');
+    var post_date = jQuery('#alljs-dispatcher-socialer').data('post-date');
 
     jQuery.ajax({
         url: base_request_url + 'get_scheduled_tweet',
@@ -133,8 +151,21 @@ alljs.socialer.get_scheduled_tweet = function(callback) {
         success: function(response) {
             if ( response.success && response.result && response.result.id ) {
                 jQuery('#socialer-tweet-body').val(response.result.tweet);
-                alljs.socialer.show_custom_message('This tweet has been scheduled');
+
+                var hours = response.result.hours;
+                var schedule_date = new Date();
+                //schedule_date.parse(post_date);
+                schedule_date.setTime(Date.parse(post_date));
+                schedule_date.setHours(schedule_date.getHours() + hours);
+
+                var schedule_msg = 'Tweet scheduled for: <b>';
+                schedule_msg += schedule_date.getMonthNameShort() + ' ' + schedule_date.getDate();
+                schedule_msg += ', ' + schedule_date.getFullYear() + ' @ ' + schedule_date.toLocaleTimeString() + '</b>';
+
+                alljs.socialer.show_custom_message(schedule_msg);
+
                 jQuery('#socialer-tweet-type').attr('checked', true);
+
                 if ( response.result.hours ) {
                     jQuery('#socialer-tweet-delay').val(response.result.hours);
                 }
@@ -146,6 +177,11 @@ alljs.socialer.get_scheduled_tweet = function(callback) {
     });
 };
 
+/**
+ * @deprecated
+ * @param text
+ * @param permalink
+ */
 alljs.socialer.schedule_tweet = function(text, permalink) {
     var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
     var post_id = jQuery('#alljs-dispatcher-socialer').data('post-id');
@@ -163,7 +199,7 @@ alljs.socialer.schedule_tweet = function(text, permalink) {
         success: function(response) {
             if ( response.success && response.result && response.result.id ) {
                 jQuery('#socialer-tweet-body').val(response.result.tweet);
-                alljs.socialer.show_custom_message('This tweet has been scheduled');
+                alljs.socialer.show_custom_message('Tweet scheduled for: ' + response.result.tweet_timestamp);
             }
         }
     });
