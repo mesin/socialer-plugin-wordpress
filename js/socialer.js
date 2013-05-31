@@ -131,15 +131,46 @@ alljs.socialer.get_scheduled_tweet = function(callback) {
             post_id: post_id
         },
         success: function(response) {
-            if ( response.success && response.result && response.result.tweet ) {
+            if ( response.success && response.result && response.result.id ) {
                 jQuery('#socialer-tweet-body').val(response.result.tweet);
                 alljs.socialer.show_custom_message('This tweet has been scheduled');
+                jQuery('#socialer-tweet-type').attr('checked', true);
+                if ( response.result.hours ) {
+                    jQuery('#socialer-tweet-delay').val(response.result.hours);
+                }
             }
             if ( typeof callback === 'function') {
                 callback();
             }
         }
     });
+};
+
+alljs.socialer.schedule_tweet = function(text, permalink) {
+    var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
+    var post_id = jQuery('#alljs-dispatcher-socialer').data('post-id');
+
+    jQuery.ajax({
+        url: base_request_url + 'schedule_tweet',
+        dataType: 'json',
+        type: 'post',
+        data: {
+            post_id: post_id,
+            text: text,
+            permalink: permalink,
+            t_offset: 300 // offset in seconds
+        },
+        success: function(response) {
+            if ( response.success && response.result && response.result.id ) {
+                jQuery('#socialer-tweet-body').val(response.result.tweet);
+                alljs.socialer.show_custom_message('This tweet has been scheduled');
+            }
+        }
+    });
+};
+
+alljs.socialer.schedule_tweet_bind = function() {
+
 };
 
 alljs.socialer.show_custom_message = function(msg) {
@@ -195,10 +226,23 @@ alljs.socialer.get_tweet_box = function() {
         alljs.socialer.get_scheduled_tweet(function(){
             jQuery('#socialer-container-wait').hide();
             jQuery('#socialer-container').show();
+            alljs.socialer.bind_schedule_option_change();
         });
         alljs.socialer.bind_ajax_push_tweet();
         alljs.socialer.count_tweet_characters();
     });
+};
+
+alljs.socialer.bind_schedule_option_change = function() {
+    jQuery('#socialer-tweet-type').unbind();
+    jQuery('#socialer-tweet-type').bind('change', function(){
+        if ( jQuery('#socialer-tweet-type').is(':checked') ) {
+            jQuery('#socialer-tweet-delay-label').show();
+        } else {
+            jQuery('#socialer-tweet-delay-label').hide();
+        }
+    });
+    jQuery('#socialer-tweet-type').trigger('change');
 };
 
 alljs.socialer.bind_ajax_push_tweet = function() {

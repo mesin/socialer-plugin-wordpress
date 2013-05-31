@@ -37,15 +37,39 @@
                     <?php endif ?>
                 </p>
                 <p>
-                    <!--a class="button button-primary" href="<?php echo Socialer::get_socialer_register_url(false) ?>" target="_blank">
-                                Go to Dashboard
-                            </a-->
                     <?php if (@$_GET['post']): ?>
                         <a class="button button-primary" id="socialer-ajax-push-tweet">
-                            Send Tweet
+                            Send Tweet Right Now
                         </a>
                         <img style="display: none" id="socialer-ajax-push-tweet-wait" src="<?php echo $this->img_plugin_base_url . 'ajax-loader.gif' ?>" />
                     <?php endif ?>
+
+                    <hr>
+                    <h4>Options</h4>
+                    <label for="socialer-tweet-type">
+                    Schedule:
+                    <input
+                        type="checkbox"
+                        id="socialer-tweet-type"
+                        name="socialer-tweet-type"
+                        <?php if ( @get_post(get_the_ID())->post_status == Socialer::POST_STATUS_FUTURE ): ?>
+                        checked="checked"
+                        <?php endif ?>
+                    >
+                    </label>
+
+                    <br>
+                    <label id="socialer-tweet-delay-label" for="socialer-tweet-delay">
+                    Delay in hours after publishing:
+                    <select id="socialer-tweet-delay" name="socialer-tweet-delay">
+                        <?php for ($hour = 1; $hour < 13; $hour++): ?>
+                        <option value="<?php echo $hour ?>"><?php echo $hour ?> hr</option>
+                        <?php endfor ?>
+                    </select>
+                    </label>
+                    <!--a class="button button-primary" href="<?php echo Socialer::get_socialer_register_url(false) ?>" target="_blank">
+                        Go to Dashboard
+                    </a-->
                 </p>
             </div>
         </div>

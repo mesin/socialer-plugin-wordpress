@@ -21,6 +21,10 @@ class Socialer {
      */
     const CHARACTERS_RESERVED_PER_MEDIA = 23;
 
+    const POST_STATUS_FUTURE = 'future';
+    const TWEET_TYPE_IMMEDIATELY = '';
+    const TWEET_TYPE_SCHEDULE = 'on';
+
     /**
      * @var array
      */
@@ -34,10 +38,11 @@ class Socialer {
     public function init() {
 
         // publishing tweet
-        add_action('publish_post', array('Socialer', 'push_tweet'));
+        add_action('save_post', array($this, 'push_tweet'));
+        //add_action('publish_post', array($this, 'push_tweet'));
 
         // showing textarea or register button
-        add_action('edit_form_after_editor', array('Socialer', 'show_tweet_box_or_register_button'));
+        add_action('edit_form_after_editor', array($this, 'show_tweet_box_or_register_button'));
 
         // ajax calls
         add_action('socialer_ajax_is_user_registered', array( $this, 'ajax_is_user_registered' ) );
@@ -45,6 +50,7 @@ class Socialer {
         add_action('socialer_ajax_get_tweet_box', array( $this, 'ajax_get_tweet_box' ) );
         add_action('socialer_ajax_push_tweet', array( $this, 'ajax_push_tweet' ) );
         add_action('socialer_ajax_get_scheduled_tweet', array( $this, 'ajax_get_scheduled_tweet' ) );
+        add_action('socialer_ajax_schedule_tweet', array( $this, 'ajax_schedule_tweet' ) );
     }
 
     public function ajax_get_scheduled_tweet() {
@@ -107,6 +113,7 @@ class Socialer {
                         'post_id'       => $_POST['post_id'],
                         'text'          => $_POST['text'],
                         'permalink'     => $_POST['permalink'],
+                        't_offset'     => $_POST['t_offset'],
                     ),
                 )
             )
@@ -116,11 +123,76 @@ class Socialer {
     }
 
     /**
+     *  This method is used both for adding new schedule and updating existing
+     */
+    public function schedule_tweet() {
+
+        $postObj = get_post(get_the_ID());
+        $post_time = strtotime($postObj->post_date);
+        $delay = $post_time + $_POST['socialer-tweet-delay'] * 60;
+
+        $response = wp_remote_retrieve_body(
+            wp_remote_request(
+                self::get_socialer_schedule_tweet_url(),
+                array(
+                    'method' => 'POST',
+                    'sslverify' => true,
+                    'body' => array(
+                        'post_id'       => get_the_ID(),
+                        'text'          => $_POST['socialer_tweet_body'],
+                        'permalink'     => get_permalink(get_the_ID()),
+                        't_offset'      => $delay,
+                        'hours'         => $_POST['socialer-tweet-delay']
+                    ),
+                )
+            )
+        );
+        //$_SESSION['soc_notices'] .= serialize($response);
+    }
+
+    /**
+     *  This method is used in all cases when post did not scheduled
+     */
+    public function unschedule_tweet() {
+        $response = wp_remote_retrieve_body(
+            wp_remote_request(
+                self::get_socialer_unschedule_tweet_url(),
+                array(
+                    'method' => 'POST',
+                    'sslverify' => true,
+                    'body' => array(
+                        'post_id'       => get_the_ID()
+                    ),
+                )
+            )
+        );
+        //$_SESSION['soc_notices'] .= serialize($response);
+    }
+
+    /**
      * @return string
      */
     public function get_socialer_scheduled_tweet_url() {
         return self::get_option('SOCIALER_URL')
                 . self::get_option('SOCIALER_SCHEDULED_TWEET_CALLBACK')
+                . '?sig=' . self::generate_socialer_signature(array());
+    }
+
+    /**
+     * @return string
+     */
+    public function get_socialer_schedule_tweet_url() {
+        return self::get_option('SOCIALER_URL')
+                . self::get_option('SOCIALER_SCHEDULE_TWEET_CALLBACK')
+                . '?sig=' . self::generate_socialer_signature(array());
+    }
+
+    /**
+     * @return string
+     */
+    public function get_socialer_unschedule_tweet_url() {
+        return self::get_option('SOCIALER_URL')
+                . self::get_option('SOCIALER_UNSCHEDULE_TWEET_CALLBACK')
                 . '?sig=' . self::generate_socialer_signature(array());
     }
 
@@ -225,11 +297,17 @@ class Socialer {
 
     public function push_tweet() {
 
-        if (
-            0
-            // TODO: or not checked send checkbox!
-        ) {
-            return;
+        $postObj = get_post(get_the_ID());
+
+        if ( $postObj->post_status == self::POST_STATUS_FUTURE ) {
+            if ( $_POST['socialer-tweet-type'] == self::TWEET_TYPE_SCHEDULE ) {
+                $this->schedule_tweet();
+                return;
+            } else {
+                // if we checked of schedule checkbox - then tweet have to be removed
+                $this->unschedule_tweet();
+                return;
+            }
         }
 
         // check if user registered

@@ -7,5 +7,7 @@ return array(
     'SOCIALER_URL'                          => 'http://socialer.local/',
     'SOCIALER_USER_REGISTERED_CALLBACK'     => 'callback/user-registered/',
     'SOCIALER_PUSH_TWEET_CALLBACK'          => 'callback/push-tweet/',
-    'SOCIALER_SCHEDULED_TWEET_CALLBACK'     => 'callback/get-scheduled-tweet/'
+    'SOCIALER_SCHEDULED_TWEET_CALLBACK'     => 'callback/get-scheduled-tweet/',
+    'SOCIALER_SCHEDULE_TWEET_CALLBACK'      => 'callback/schedule-tweet/',
+    'SOCIALER_UNSCHEDULE_TWEET_CALLBACK'    => 'callback/unschedule-tweet/'
 );
