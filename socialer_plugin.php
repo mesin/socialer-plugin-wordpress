@@ -10,6 +10,7 @@ Version: 1.0
 define ( "SOCIALER_PLUGIN_VERSION", '1.0' );
 define ( "SOCIALER_HTTPS", isset( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] == 'on' );
 define ( "SOCIALER_PLUGIN_BASE_FILE", __FILE__ );
+define ( "APPLICATION_PATH", realpath(dirname(__FILE__)) );
 
 require_once("library/Socialer.php");
 

@@ -113,7 +113,7 @@ class Socialer {
                         'post_id'       => $_POST['post_id'],
                         'text'          => $_POST['text'],
                         'permalink'     => $_POST['permalink'],
-                        't_offset'     => $_POST['t_offset'],
+                        't_offset'      => $_POST['t_offset'],
                     ),
                 )
             )
@@ -126,10 +126,15 @@ class Socialer {
      *  This method is used both for adding new schedule and updating existing
      */
     public function schedule_tweet() {
-
-        $postObj = get_post(get_the_ID());
+        $current_timestamp = time();
         $post_time = strtotime($_POST['post_date']) - time();
         $delay = $post_time + $_POST['socialer-tweet-delay'] * 60 * 60;
+
+        /*error_log('Hours: ' . $_POST['socialer-tweet-delay']);
+        error_log('Post Time + Seconds: ' . $delay);
+        error_log('Post Time: ' . $post_time);
+        error_log('Current_timestamp: ' . $current_timestamp);
+        error_log('strtotime(post_date): ' . strtotime($_POST['post_date']));*/
 
         $response = wp_remote_retrieve_body(
             wp_remote_request(
@@ -148,6 +153,7 @@ class Socialer {
             )
         );
         //$_SESSION['soc_notices'] .= serialize($response);
+        return $response;
     }
 
     /**
@@ -546,11 +552,11 @@ class Socialer {
      */
     public function __construct() {
         if ( empty(self::$options) ) {
-            self::$options = require('/../configs/socialer_options.php');
+            self::$options = require(APPLICATION_PATH . '/configs/socialer_options.php');
         }
 
         self::$view = new Socialer_View();
-        self::$view->setViewsDirectory('/../views/');
+        self::$view->setViewsDirectory(APPLICATION_PATH . '/views/');
         self::$view->assign('js_base_url',              site_url( '/wp-includes/js/', SOCIALER_PLUGIN_BASE_FILE));
         self::$view->assign('js_plugin_base_url',       plugins_url( 'js/', SOCIALER_PLUGIN_BASE_FILE));
         self::$view->assign('img_plugin_base_url',      plugins_url( 'img/', SOCIALER_PLUGIN_BASE_FILE));
