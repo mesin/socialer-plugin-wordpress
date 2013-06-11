@@ -132,7 +132,7 @@ class Socialer {
                 . ' ' . $_POST['hh'] . ':' . $_POST['mn'] . ':' . $_POST['ss'];
         }
 
-        $current_timestamp = time();
+        $current_timestamp = current_time( 'timestamp' );
         // throw how many seconds post will be published
         $post_time = strtotime($_POST['post_date']) - $current_timestamp;
         // adding tweet delay
@@ -140,9 +140,9 @@ class Socialer {
 
         /*var_dump($_POST);
         print('Hours: ' . $_POST['socialer-tweet-delay'].'<br>');
-        print('Post Time + Seconds: ' . $delay.'<br>');
-        print('Post Time: ' . $post_time.'<br>');
-        print('Current_timestamp: ' . $current_timestamp.'<br>');
+        print('Post Time Offset + Seconds: ' . $delay.'<br>');
+        print('Post Time Offset: ' . $post_time.'<br>');
+        print('Current_timestamp: ' . $current_timestamp.' (' . date('Y-m-d h:i:s', $current_timestamp) . ')'.'<br>');
         print('strtotime(post_date): ' . strtotime($_POST['post_date']).'<br>');
         print('post_date: ' . $_POST['post_date'].'<br>');*/
 
