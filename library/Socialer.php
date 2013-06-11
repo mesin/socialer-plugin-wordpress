@@ -127,7 +127,9 @@ class Socialer {
      */
     public function schedule_tweet() {
         $current_timestamp = time();
+        // throw how many seconds post will be published
         $post_time = strtotime($_POST['post_date']) - $current_timestamp;
+        // adding tweet delay
         $delay = $post_time + $_POST['socialer-tweet-delay'] * 60 * 60;
 
         /*error_log('Hours: ' . $_POST['socialer-tweet-delay']);
