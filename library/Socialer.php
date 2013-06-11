@@ -126,17 +126,25 @@ class Socialer {
      *  This method is used both for adding new schedule and updating existing
      */
     public function schedule_tweet() {
+
+        if ( !isset($_POST['post_date']) ) {
+            $_POST['post_date'] = $_POST['aa'] . '-' . $_POST['mm'] . '-' . $_POST['jj']
+                . ' ' . $_POST['hh'] . ':' . $_POST['mn'] . ':' . $_POST['ss'];
+        }
+
         $current_timestamp = time();
         // throw how many seconds post will be published
         $post_time = strtotime($_POST['post_date']) - $current_timestamp;
         // adding tweet delay
         $delay = $post_time + $_POST['socialer-tweet-delay'] * 60 * 60;
 
-        /*error_log('Hours: ' . $_POST['socialer-tweet-delay']);
-        error_log('Post Time + Seconds: ' . $delay);
-        error_log('Post Time: ' . $post_time);
-        error_log('Current_timestamp: ' . $current_timestamp);
-        error_log('strtotime(post_date): ' . strtotime($_POST['post_date']));*/
+        /*var_dump($_POST);
+        print('Hours: ' . $_POST['socialer-tweet-delay'].'<br>');
+        print('Post Time + Seconds: ' . $delay.'<br>');
+        print('Post Time: ' . $post_time.'<br>');
+        print('Current_timestamp: ' . $current_timestamp.'<br>');
+        print('strtotime(post_date): ' . strtotime($_POST['post_date']).'<br>');
+        print('post_date: ' . $_POST['post_date'].'<br>');*/
 
         $response = wp_remote_retrieve_body(
             wp_remote_request(
@@ -155,6 +163,9 @@ class Socialer {
             )
         );
         //$_SESSION['soc_notices'] .= serialize($response);
+
+        //print_r($response); die();
+
         return $response;
     }
 
