@@ -37,7 +37,9 @@
                     <?php endif ?>
                 </p>
                 <p>
-                    <?php if ( @get_post(get_the_ID())->post_status == Socialer::POST_STATUS_PUBLISHED ): ?>
+                    <?php if (
+                            @get_post(@$_REQUEST['post'])->post_status == Socialer::POST_STATUS_PUBLISHED
+                        ): ?>
                         <a class="button button-primary" id="socialer-ajax-push-tweet">
                             Send Tweet Right Now
                         </a>
@@ -46,6 +48,19 @@
 
                     <hr>
                     <h4>Options</h4>
+                    <label for="socialer-tweet-onoff">
+                    Tweeting on Update:
+                    <input
+                        type="checkbox"
+                        id="socialer-tweet-onoff"
+                        name="socialer-tweet-onoff"
+                        <?php if ( @get_post(get_the_ID())->post_status == Socialer::POST_STATUS_FUTURE ): ?>
+                            checked="checked"
+                        <?php endif ?>
+                        >
+                    </label>
+
+                    <br>
                     <label for="socialer-tweet-type">
                     Schedule:
                     <input
@@ -63,13 +78,23 @@
                     Delay in hours after publishing:
                     <select id="socialer-tweet-delay" name="socialer-tweet-delay">
                         <?php for ($hour = 1; $hour < 13; $hour++): ?>
-                        <option value="<?php echo $hour ?>"><?php echo $hour ?> hr</option>
+                        <option
+                            value="<?php echo $hour ?>"
+                            <?php if ( $hour == Socialer_Settings::getDefaultScheduleHours() ): ?>
+                                selected="selected"
+                            <?php endif ?>
+                        ><?php echo $hour ?> hr</option>
                         <?php endfor ?>
                     </select>
                     </label>
-                    <!--a class="button button-primary" href="<?php echo Socialer::get_socialer_register_url(false) ?>" target="_blank">
+
+                    <hr>
+                    <br>
+                    <?php if (Socialer_Settings::isShowDashboardButton()): ?>
+                    <a class="button button-primary" href="<?php echo Socialer::get_socialer_register_url(false) ?>" target="_blank">
                         Go to Dashboard
-                    </a-->
+                    </a>
+                    <?php endif ?>
                 </p>
             </div>
         </div>

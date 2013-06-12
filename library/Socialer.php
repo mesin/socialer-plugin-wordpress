@@ -10,6 +10,7 @@ session_start();
 
 require_once('Crypt.php');
 require_once('View.php');
+require_once('Settings.php');
 
 class Socialer {
 
@@ -25,6 +26,7 @@ class Socialer {
     const POST_STATUS_PUBLISHED = 'publish';
     const TWEET_TYPE_IMMEDIATELY = '';
     const TWEET_TYPE_SCHEDULE = 'on';
+    const TWEETING_ON = 'on';
 
     /**
      * @var array
@@ -37,6 +39,11 @@ class Socialer {
     protected static $view = null;
 
     public function init() {
+
+        if ( !Socialer_Settings::isSocialerActive() ) {
+            return;
+        }
+
         // publishing tweet
         add_action('save_post', array($this, 'push_tweet'));
         //add_action('publish_post', array($this, 'push_tweet'));
@@ -315,6 +322,20 @@ class Socialer {
     }
 
     public function push_tweet() {
+
+        /**
+         *  Protection because for some reason in some WP blogs hook works twice!
+         *  And we have Twitter error: Status is a duplicate
+         */
+        static $tweet_pushed = false;
+        if ( true === $tweet_pushed ) {
+            return;
+        }
+        $tweet_pushed = true;
+
+        if ( $_POST['socialer-tweet-onoff'] != self::TWEETING_ON ) {
+            return;
+        }
 
         $postObj = get_post(get_the_ID());
 

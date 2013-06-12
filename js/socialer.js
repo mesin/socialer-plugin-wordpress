@@ -132,6 +132,62 @@ Date.locale = {
     }
 };
 
+alljs.cookie = alljs.cookie || {};
+alljs.cookie.pluses = /\+/g;
+alljs.cookie.defaults = {};
+
+alljs.cookie.raw = function(s) {
+    return s;
+};
+
+alljs.cookie.decoded = function(s) {
+    return decodeURIComponent(s.replace(alljs.cookie.pluses, ' '));
+};
+
+/**
+ * Setting cookie
+ * @param key
+ * @param value
+ * @param options
+ * @return {*}
+ */
+alljs.cookie.cookie = function(key, value, options) {
+    // key and at least value given, set cookie...
+    if (arguments.length > 1 && (!/Object/.test(Object.prototype.toString.call(value)) || value == null)) {
+        options = jQuery.extend({}, alljs.cookie.defaults, options);
+
+        if (value == null) {
+            options.expires = -1;
+        }
+
+        if (typeof options.expires === 'number') {
+            var days = options.expires, t = options.expires = new Date();
+            t.setDate(t.getDate() + days);
+        }
+
+        value = String(value);
+
+        return (document.cookie = [
+            encodeURIComponent(key), '=', options.raw ? value : encodeURIComponent(value),
+            options.expires ? '; expires=' + options.expires.toUTCString() : '', // use expires attribute, max-age is not supported by IE
+            options.path    ? '; path=' + options.path : '',
+            options.domain  ? '; domain=' + options.domain : '',
+            options.secure  ? '; secure' : ''
+        ].join(''));
+    }
+
+    // key and possibly options given, get cookie...
+    options = value || alljs.cookie.defaults || {};
+    var decode = options.raw ? alljs.cookie.raw : alljs.cookie.decoded;
+    var cookies = document.cookie.split('; ');
+    for (var i = 0, parts; (parts = cookies[i] && cookies[i].split('=')); i++) {
+        if (decode(parts.shift()) === key) {
+            return decode(parts.join('='));
+        }
+    }
+    return null;
+};
+
 //-----------------------------------------------------------------------------
 
 alljs.socialer = alljs.socialer || {};
@@ -263,6 +319,7 @@ alljs.socialer.get_tweet_box = function() {
             jQuery('#socialer-container-wait').hide();
             jQuery('#socialer-container').show();
             alljs.socialer.bind_schedule_option_change();
+            alljs.socialer.bind_tweeting_onoff();
         });
         alljs.socialer.bind_ajax_push_tweet();
         alljs.socialer.count_tweet_characters();
@@ -278,7 +335,24 @@ alljs.socialer.bind_schedule_option_change = function() {
             jQuery('#socialer-tweet-delay-label').hide();
         }
     });
+
     jQuery('#socialer-tweet-type').trigger('change');
+};
+
+alljs.socialer.bind_tweeting_onoff = function() {
+    if ( !alljs.cookie.cookie('socialer-tweet-onoff') ) {
+        jQuery('#socialer-tweet-onoff').removeAttr('checked');
+    } else {
+        jQuery('#socialer-tweet-onoff').attr('checked', 'checked');
+    }
+
+    jQuery('#socialer-tweet-onoff').unbind();
+    jQuery('#socialer-tweet-onoff').bind('change', function(){
+        alljs.cookie.cookie(
+            'socialer-tweet-onoff',
+            jQuery('#socialer-tweet-onoff').attr('checked')
+        );
+    });
 };
 
 alljs.socialer.bind_ajax_push_tweet = function() {

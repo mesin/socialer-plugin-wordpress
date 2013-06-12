@@ -13,9 +13,11 @@ define ( "SOCIALER_PLUGIN_BASE_FILE", __FILE__ );
 define ( "APPLICATION_PATH", realpath(dirname(__FILE__)) );
 
 require_once("library/Socialer.php");
+require_once("library/Settings.php");
 
 if ( is_admin() ) {
-    // TODO: Init Socialer WP settings
+    $settings = new Socialer_Settings();
+    $settings->init();
 }
 
 // init Socialer
