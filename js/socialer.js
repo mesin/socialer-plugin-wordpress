@@ -238,7 +238,7 @@ alljs.socialer.get_scheduled_tweet = function(callback) {
  * @param text
  * @param permalink
  */
-alljs.socialer.schedule_tweet = function(text, permalink) {
+alljs.socialer.schedule_tweet = function(text, permalink, post_title) {
     var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
     var post_id = jQuery('#alljs-dispatcher-socialer').data('post-id');
 
@@ -250,6 +250,7 @@ alljs.socialer.schedule_tweet = function(text, permalink) {
             post_id: post_id,
             text: text,
             permalink: permalink,
+            title: post_title,
             t_offset: 300 // offset in seconds
         },
         success: function(response) {
@@ -323,6 +324,10 @@ alljs.socialer.get_tweet_box = function() {
         });
         alljs.socialer.bind_ajax_push_tweet();
         alljs.socialer.count_tweet_characters();
+        if ( jQuery('#alljs-dispatcher-socialer').data('autosend-tweet') ) {
+            jQuery('#alljs-dispatcher-socialer').removeAttr('data-autosend-tweet');
+            jQuery('#socialer-ajax-push-tweet').click();
+        }
     });
 };
 
@@ -360,6 +365,8 @@ alljs.socialer.bind_ajax_push_tweet = function() {
     jQuery('#socialer-ajax-push-tweet').bind('click', function(){
         var base_request_url = jQuery('#alljs-dispatcher-socialer').data('base-url');
         var post_id = jQuery('#alljs-dispatcher-socialer').data('post-id');
+        var url = jQuery('#alljs-dispatcher-socialer').data('url');
+        var post_title = jQuery('#alljs-dispatcher-socialer').data('title');
 
         jQuery('#socialer-ajax-push-tweet-wait').show();
         jQuery('#socialer-ajax-push-tweet').unbind();
@@ -370,7 +377,9 @@ alljs.socialer.bind_ajax_push_tweet = function() {
             dataType: 'json',
             type: 'post',
             data: {
-                text: jQuery('#socialer-tweet-body').val()
+                text: jQuery('#socialer-tweet-body').val(),
+                url: url,
+                title: post_title
             },
             success: function(response) {
                 jQuery('#socialer-message').show();

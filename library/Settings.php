@@ -8,6 +8,8 @@ class Socialer_Settings {
     const OPT_SOCIALER_IS_ACTIVE    = 1;
     const OPT_SOCIALER_ISNT_ACTIVE  = 0;
 
+    const SCHEDULE_DEFAULT_HOURS    = 1;
+
     public $tabs                    = array();
 
     public function init() {
@@ -30,6 +32,7 @@ class Socialer_Settings {
 
         add_settings_section( 'others_section', 'Other', array(), self::GENERAL_SETTINGS_KEY );
         add_settings_field( 'show_dashboard_button', 'Show Dashboard Button:', array( $this, 'settingsSocialerShowDashboardButton' ), self::GENERAL_SETTINGS_KEY, 'others_section' );
+        add_settings_field( 'api_key', 'API Key:', array( $this, 'settingsSocialerApiKey' ), self::GENERAL_SETTINGS_KEY, 'others_section' );
 
         $this->tabs[ self::GENERAL_SETTINGS_KEY ] = __( 'Socialer Settings' );
     }
@@ -43,6 +46,11 @@ class Socialer_Settings {
      */
     public static function isSocialerActive() {
         $options = get_option( self::GENERAL_SETTINGS_KEY );
+
+        if ( !isset($options['socialer_is_active']) ) {
+            return true;
+        }
+
         return (Boolean)$options['socialer_is_active'];
     }
 
@@ -51,6 +59,11 @@ class Socialer_Settings {
      */
     public static function isShowDashboardButton() {
         $options = get_option( self::GENERAL_SETTINGS_KEY );
+
+        if ( !isset($options['show_dashboard_button']) ) {
+            return true;
+        }
+
         return (Boolean)$options['show_dashboard_button'];
     }
 
@@ -59,6 +72,11 @@ class Socialer_Settings {
      */
     public static function getDefaultScheduleHours() {
         $options = get_option( self::GENERAL_SETTINGS_KEY );
+
+        if ( !isset($options['socialer_schedule_default_hours']) ) {
+            return self::SCHEDULE_DEFAULT_HOURS;
+        }
+
         return intval($options['socialer_schedule_default_hours']);
     }
 
@@ -143,5 +161,26 @@ class Socialer_Settings {
                 >No</option>
         </select>
         <?php
+    }
+
+    public function settingsSocialerApiKey() {
+        $options = get_option( self::GENERAL_SETTINGS_KEY );
+        ?>
+        <input
+            type="text"
+            id="socialer-api-key"
+            value="<?php echo $options['api_key'] ?>"
+            name="<?php echo self::GENERAL_SETTINGS_KEY ?>[api_key]"
+            style="width: 300px;"
+        >
+        <?php
+    }
+
+    /**
+     * @return string
+     */
+    public static function getApiKey() {
+        $options = get_option( self::GENERAL_SETTINGS_KEY );
+        return @$options['api_key'];
     }
 }

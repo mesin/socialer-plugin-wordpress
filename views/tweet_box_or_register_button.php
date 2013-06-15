@@ -13,5 +13,11 @@
     <?php if (@$_GET['post']): ?>
     data-post-id="<?php echo @$_GET['post'] ?>"
     data-post-date="<?php echo get_post(get_the_ID())->post_date ?>"
+    data-url="<?php echo get_permalink(get_the_ID()) ?>"
+    data-title="<?php echo get_post(get_the_ID())->post_title ?>"
+        <?php if (isset($_SESSION['send_tweet_on_update'])): ?>
+            data-autosend-tweet="1"
+            <?php unset($_SESSION['send_tweet_on_update']); ?>
+        <?php endif ?>
     <?php endif ?>
 ></div>

@@ -14,33 +14,39 @@ require_once('Settings.php');
 
 class Socialer {
 
-    const JS_VERSION = '1.1';
-    const SIGNATURE_LIFETIME = 3600;
+    const JS_VERSION                            = '1.1';
+    const SIGNATURE_LIFETIME                    = 3600;
+    const SOCIALER_AUTH_HEADER                  = 'socialer-fast-call';
 
     /**
      * https://dev.twitter.com/docs/api/1.1/get/help/configuration
      */
-    const CHARACTERS_RESERVED_PER_MEDIA = 23;
-
-    const POST_STATUS_FUTURE = 'future';
-    const POST_STATUS_PUBLISHED = 'publish';
-    const TWEET_TYPE_IMMEDIATELY = '';
-    const TWEET_TYPE_SCHEDULE = 'on';
-    const TWEETING_ON = 'on';
+    const CHARACTERS_RESERVED_PER_MEDIA         = 23;
+    const POST_STATUS_FUTURE                    = 'future';
+    const POST_STATUS_PUBLISHED                 = 'publish';
+    const TWEET_TYPE_IMMEDIATELY                = '';
+    const TWEET_TYPE_SCHEDULE                   = 'on';
+    const TWEETING_ON                           = 'on';
 
     /**
      * @var array
      */
-    protected static $options = array();
+    protected static $options                   = array();
 
     /**
      * @var Socialer_View
      */
-    protected static $view = null;
+    protected static $view                      = null;
 
     public function init() {
-
         if ( !Socialer_Settings::isSocialerActive() ) {
+            return;
+        }
+
+        // showing textarea or register button OR message to save API key
+        add_action('edit_form_after_editor', array($this, 'show_tweet_box_or_register_button'));
+
+        if ( !Socialer_Settings::getApiKey() ) {
             return;
         }
 
@@ -48,8 +54,7 @@ class Socialer {
         add_action('save_post', array($this, 'push_tweet'));
         //add_action('publish_post', array($this, 'push_tweet'));
 
-        // showing textarea or register button
-        add_action('edit_form_after_editor', array($this, 'show_tweet_box_or_register_button'));
+
 
         // ajax calls
         add_action('socialer_ajax_is_user_registered', array( $this, 'ajax_is_user_registered' ) );
@@ -77,51 +82,9 @@ class Socialer {
                     'method' => 'POST',
                     'sslverify' => true,
                     'body' => array('post_id' => $_POST['post_id']),
-                )
-            )
-        );
-
-        die($response);
-    }
-
-    /**
-     *  This method is used both for adding new schedule and updating existing
-     *  // TODO: what if link does not exists yet?
-     */
-    public function ajax_schedule_tweet() {
-        self::$view->clearVars();
-
-        if ( !isset($_POST['post_id']) || !$_POST['post_id'] ) {
-            self::$view->assign('error', true);
-            self::$view->assign('message', 'Bad post_id');
-            die(self::$view->getJSON());
-        }
-
-        if ( !isset($_POST['text']) || !$_POST['text'] ) {
-            self::$view->assign('error', true);
-            self::$view->assign('message', 'Empty tweet');
-            die(self::$view->getJSON());
-        }
-
-        if ( !isset($_POST['permalink']) || !$_POST['permalink'] ) {
-            self::$view->assign('error', true);
-            self::$view->assign('message', 'Permalink does not exists!');
-            die(self::$view->getJSON());
-        }
-
-        // check if user registered
-        $response = wp_remote_retrieve_body(
-            wp_remote_request(
-                self::get_socialer_scheduled_tweet_url(),
-                array(
-                    'method' => 'POST',
-                    'sslverify' => true,
-                    'body' => array(
-                        'post_id'       => $_POST['post_id'],
-                        'text'          => $_POST['text'],
-                        'permalink'     => $_POST['permalink'],
-                        't_offset'      => $_POST['t_offset'],
-                    ),
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
                 )
             )
         );
@@ -166,6 +129,9 @@ class Socialer {
                         't_offset'      => $delay,
                         'hours'         => $_POST['socialer-tweet-delay']
                     ),
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
                 )
             )
         );
@@ -189,6 +155,9 @@ class Socialer {
                     'body' => array(
                         'post_id'       => get_the_ID()
                     ),
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
                 )
             )
         );
@@ -200,8 +169,8 @@ class Socialer {
      */
     public function get_socialer_scheduled_tweet_url() {
         return self::get_option('SOCIALER_URL')
-                . self::get_option('SOCIALER_SCHEDULED_TWEET_CALLBACK')
-                . '?sig=' . self::generate_socialer_signature(array());
+                . self::get_option('SOCIALER_SCHEDULED_TWEET_API')
+                . 'user_wp_uid/' . self::get_user_wp_uid();
     }
 
     /**
@@ -209,8 +178,8 @@ class Socialer {
      */
     public function get_socialer_schedule_tweet_url() {
         return self::get_option('SOCIALER_URL')
-                . self::get_option('SOCIALER_SCHEDULE_TWEET_CALLBACK')
-                . '?sig=' . self::generate_socialer_signature(array());
+                . self::get_option('SOCIALER_SCHEDULE_TWEET_API')
+                . 'user_wp_uid/' . self::get_user_wp_uid();
     }
 
     /**
@@ -218,8 +187,8 @@ class Socialer {
      */
     public function get_socialer_unschedule_tweet_url() {
         return self::get_option('SOCIALER_URL')
-                . self::get_option('SOCIALER_UNSCHEDULE_TWEET_CALLBACK')
-                . '?sig=' . self::generate_socialer_signature(array());
+                . self::get_option('SOCIALER_UNSCHEDULE_TWEET_API')
+                . 'user_wp_uid/' . self::get_user_wp_uid();
     }
 
     public function ajax_push_tweet() {
@@ -229,10 +198,13 @@ class Socialer {
         // check if user registered
         $response = wp_remote_retrieve_body(
             wp_remote_request(
-                self::get_socialer_user_registered_callback_url(),
+                self::get_socialer_user_registered_API_url(),
                 array(
                     'method' => 'GET',
                     'sslverify' => true,
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
                 )
             )
         );
@@ -246,14 +218,23 @@ class Socialer {
 
             $response = wp_remote_retrieve_body(
                 wp_remote_request(
-                    self::get_socialer_push_tweet_callback_url(),
+                    self::get_socialer_push_tweet_API_url(),
                     array(
                         'method' => 'POST',
-                        'body' => array('text' => $_POST['text'] . ' ' . $permalink),
+                        'body' => array(
+                            'text'  => $_POST['text'] . ' ' . $permalink,
+                            'url'   => $permalink,
+                            'title' => $_POST['title']
+                        ),
                         'sslverify' => true,
+                        'headers'   => array(
+                            self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                        )
                     )
                 )
             );
+
+            //die($response);
 
             $response = json_decode($response);
             $errors_messages = '';
@@ -322,7 +303,6 @@ class Socialer {
     }
 
     public function push_tweet() {
-
         /**
          *  Protection because for some reason in some WP blogs hook works twice!
          *  And we have Twitter error: Status is a duplicate
@@ -337,8 +317,8 @@ class Socialer {
             return;
         }
 
+        // schedule
         $postObj = get_post(get_the_ID());
-
         if (
             $postObj->post_status == self::POST_STATUS_FUTURE
             || strtotime($_POST['post_date']) > time()
@@ -353,13 +333,21 @@ class Socialer {
             return;
         }
 
+        // or mark for sending right now with ajax!
+        $_SESSION['send_tweet_on_update'] = true;
+        $_SESSION['soc_last_tweet_text'] = $_POST['socialer_tweet_body'];
+        return;
+
         // check if user registered
-        $response = wp_remote_retrieve_body(
+        /*$response = wp_remote_retrieve_body(
             wp_remote_request(
-                self::get_socialer_user_registered_callback_url(),
+                self::get_socialer_user_registered_API_url(),
                 array(
                     'method' => 'GET',
                     'sslverify' => true,
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
                 )
             )
         );
@@ -368,16 +356,23 @@ class Socialer {
 
         if ( $response && isset($response->success) && $response->success ) {
 
-            $permalink = get_permalink(get_the_ID());
+            $permalink = get_permalink($postObj->ID);
             $_POST['socialer_tweet_body'] = trim($_POST['socialer_tweet_body'], ',undefined');
 
             $response = wp_remote_retrieve_body(
                 wp_remote_request(
-                    self::get_socialer_push_tweet_callback_url(),
+                    self::get_socialer_push_tweet_API_url(),
                     array(
                         'method' => 'POST',
-                        'body' => array('text' => $_POST['socialer_tweet_body'] . ' ' . $permalink),
+                        'body' => array(
+                            'text'  => $_POST['socialer_tweet_body'] . ' ' . $permalink,
+                            'url'   => $permalink,
+                            'title' => $_POST['post_title']
+                        ),
                         'sslverify' => true,
+                        'headers'   => array(
+                            self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                        )
                     )
                 )
             );
@@ -429,7 +424,7 @@ class Socialer {
             $_SESSION['soc_notices_is_error'] = false;
             $_SESSION['soc_last_tweet_status'] = true;
             unset($_SESSION['soc_last_tweet_text']);
-        }
+        }*/
     }
 
     function showMessage()
@@ -459,10 +454,13 @@ class Socialer {
     public function ajax_is_user_registered() {
         $response = wp_remote_retrieve_body(
             wp_remote_request(
-                self::get_socialer_user_registered_callback_url(),
+                self::get_socialer_user_registered_API_url(),
                 array(
                     'method' => 'GET',
                     'sslverify' => true,
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
                 )
             )
         );
@@ -497,7 +495,11 @@ class Socialer {
      *  Finding out if user is registered and showing tweet box or register button
      */
     public function show_tweet_box_or_register_button() {
-        echo self::$view->render('tweet_box_or_register_button.php');
+        if ( Socialer_Settings::getApiKey() ) {
+            echo self::$view->render('tweet_box_or_register_button.php');
+        } else {
+            echo self::$view->render('get_api_key.php');
+        }
     }
 
     public function ajax_get_tweet_box() {
@@ -525,7 +527,7 @@ class Socialer {
      * @return string
      */
     public function generate_socialer_signature( Array $data ) {
-        $data['site_id']        = self::get_site_id();
+        $data['api_key']        = Socialer_Settings::getApiKey();
         $data['user_wp_uid']    = self::get_user_wp_uid();
         $data['exp_t']          = (time() + self::SIGNATURE_LIFETIME);
 
@@ -559,19 +561,19 @@ class Socialer {
     /**
      * @return string
      */
-    public function get_socialer_user_registered_callback_url() {
+    public function get_socialer_user_registered_API_url() {
         return self::get_option('SOCIALER_URL')
-               . self::get_option('SOCIALER_USER_REGISTERED_CALLBACK')
-               . '?sig=' . self::generate_socialer_signature(array());
+               . self::get_option('SOCIALER_USER_REGISTERED_API')
+               . 'user_wp_uid/' . self::get_user_wp_uid();
     }
 
     /**
      * @return string
      */
-    public function get_socialer_push_tweet_callback_url() {
+    public function get_socialer_push_tweet_API_url() {
         return self::get_option('SOCIALER_URL')
-               . self::get_option('SOCIALER_PUSH_TWEET_CALLBACK')
-               . '?sig=' . self::generate_socialer_signature(array());
+               . self::get_option('SOCIALER_PUSH_TWEET_API')
+               . 'user_wp_uid/' . self::get_user_wp_uid();
     }
 
     /**
