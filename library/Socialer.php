@@ -214,7 +214,7 @@ class Socialer {
         if ( $response && isset($response->success) && $response->success ) {
 
             $permalink = get_permalink($_GET['post']);
-            $_POST['text'] = trim($_POST['text'], ',undefined');
+            $_POST['text'] = str_replace(',undefined', '', $_POST['text']);
 
             $response = wp_remote_retrieve_body(
                 wp_remote_request(
