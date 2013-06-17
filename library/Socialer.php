@@ -14,7 +14,7 @@ require_once('Settings.php');
 
 class Socialer {
 
-    const JS_VERSION                            = '1.1';
+    const JS_VERSION                            = '1.2';
     const SIGNATURE_LIFETIME                    = 3600;
     const SOCIALER_AUTH_HEADER                  = 'socialer-fast-call';
 
@@ -51,10 +51,7 @@ class Socialer {
         }
 
         // publishing tweet
-        add_action('save_post', array($this, 'push_tweet'));
-        //add_action('publish_post', array($this, 'push_tweet'));
-
-
+        add_action('save_post', array($this, 'Dispatch_Tweet'));
 
         // ajax calls
         add_action('socialer_ajax_is_user_registered', array( $this, 'ajax_is_user_registered' ) );
@@ -95,18 +92,12 @@ class Socialer {
     /**
      *  This method is used both for adding new schedule and updating existing
      */
-    public function schedule_tweet() {
-
-        if ( !isset($_POST['post_date']) ) {
-            $_POST['post_date'] = $_POST['aa'] . '-' . $_POST['mm'] . '-' . $_POST['jj']
-                . ' ' . $_POST['hh'] . ':' . $_POST['mn'] . ':' . $_POST['ss'];
-        }
-
+    public function ajax_schedule_tweet() {
         $current_timestamp = current_time( 'timestamp' );
         // throw how many seconds post will be published
-        $post_time = strtotime($_POST['post_date']) - $current_timestamp;
+        $post_time = strtotime($_POST['schedule_date']) - $current_timestamp;
         // adding tweet delay
-        $delay = $post_time + $_POST['socialer-tweet-delay'] * 60 * 60;
+        $delay = $post_time + $_POST['schedule_delay'] * 60 * 60;
 
         /*var_dump($_POST);
         print('Hours: ' . $_POST['socialer-tweet-delay'].'<br>');
@@ -116,6 +107,17 @@ class Socialer {
         print('strtotime(post_date): ' . strtotime($_POST['post_date']).'<br>');
         print('post_date: ' . $_POST['post_date'].'<br>');*/
 
+        /**
+         * Post structure:
+         *
+            text: jQuery('#socialer-tweet-body').val(),
+            url: url,
+            title: title,
+            post_id: post_id,
+            schedule_date: schedule_date,
+            schedule_delay: schedule_delay
+         */
+
         $response = wp_remote_retrieve_body(
             wp_remote_request(
                 self::get_socialer_schedule_tweet_url(),
@@ -123,11 +125,12 @@ class Socialer {
                     'method' => 'POST',
                     'sslverify' => true,
                     'body' => array(
-                        'post_id'       => get_the_ID(),
-                        'text'          => $_POST['socialer_tweet_body'],
-                        'permalink'     => get_permalink(get_the_ID()),
+                        'post_id'       => $_POST['post_id'],
+                        'text'          => $_POST['text'],
+                        'permalink'     => $_POST['url'],
                         't_offset'      => $delay,
-                        'hours'         => $_POST['socialer-tweet-delay']
+                        'hours'         => $_POST['schedule_delay'],
+                        'title'         => $_POST['title'],
                     ),
                     'headers'   => array(
                         self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
@@ -139,7 +142,7 @@ class Socialer {
 
         //print_r($response); die();
 
-        return $response;
+        die($response);
     }
 
     /**
@@ -295,6 +298,7 @@ class Socialer {
             $_SESSION['soc_notices_is_error'] = true;
             $_SESSION['soc_last_tweet_status'] = false;
             $_SESSION['soc_notices'] = 'Something is wrong. Please try again later';
+            die($response);
 
             self::$view->assign('message',  self::showMessage());
             self::$view->assign('error',    true);
@@ -302,7 +306,10 @@ class Socialer {
         }
     }
 
-    public function push_tweet() {
+    /**
+     *  Pushing tweet, or scheduling it ir unscheduling it
+     */
+    public function Dispatch_Tweet() {
         /**
          *  Protection because for some reason in some WP blogs hook works twice!
          *  And we have Twitter error: Status is a duplicate
@@ -313,118 +320,52 @@ class Socialer {
         }
         $tweet_pushed = true;
 
-        if ( $_POST['socialer-tweet-onoff'] != self::TWEETING_ON ) {
-            return;
-        }
+        $_POST['socialer_tweet_body'] = str_replace(',undefined', '', $_POST['socialer_tweet_body']);
 
         // schedule
-        $postObj = get_post(get_the_ID());
-        if (
-            $postObj->post_status == self::POST_STATUS_FUTURE
-            || strtotime($_POST['post_date']) > time()
-        ) {
-            if ( $_POST['socialer-tweet-type'] == self::TWEET_TYPE_SCHEDULE ) {
-                $this->schedule_tweet();
+        //$postObj = get_post(get_the_ID());
+        //if (
+        //    $postObj->post_status == self::POST_STATUS_FUTURE
+        //    || strtotime($_POST['post_date']) > time()
+        //) {
+            if ( $_POST['socialer-tweet-schedule'] == self::TWEET_TYPE_SCHEDULE ) {
+                // or mark for sending right now with ajax!
+                $this->_prepare_tweet_scheduling();
             } else {
                 // if we checked of schedule checkbox - then tweet have to be removed
                 $this->unschedule_tweet();
             }
             // ANYWAY if post is scheduled - we do not need to send tweet
-            return;
-        }
+            //return;
+        //}
 
         // or mark for sending right now with ajax!
+        if ( $_POST['socialer-tweeting-enabled'] == self::TWEETING_ON ) {
+            $this->_prepare_tweet_sending();
+        }
+    }
+
+    protected function _prepare_tweet_sending() {
         $_SESSION['send_tweet_on_update'] = true;
         $_SESSION['soc_last_tweet_text'] = $_POST['socialer_tweet_body'];
-        return;
+    }
 
-        // check if user registered
-        /*$response = wp_remote_retrieve_body(
-            wp_remote_request(
-                self::get_socialer_user_registered_API_url(),
-                array(
-                    'method' => 'GET',
-                    'sslverify' => true,
-                    'headers'   => array(
-                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
-                    )
-                )
-            )
-        );
+    protected function _prepare_tweet_scheduling() {
+        $_SESSION['schedule_tweet_on_update'] = true;
+        $_SESSION['soc_last_tweet_text'] = $_POST['socialer_tweet_body'];
 
-        $response = json_decode($response);
+        //echo $_SESSION['soc_last_tweet_text'];
+        //die($_POST['socialer_tweet_body']);
 
-        if ( $response && isset($response->success) && $response->success ) {
+        // WARNING: post date have to be taken from here because on new post it does not presents!
+        if ( !isset($_POST['post_date']) ) {
+            $_POST['post_date'] = $_POST['aa'] . '-' . $_POST['mm'] . '-' . $_POST['jj']
+                . ' ' . $_POST['hh'] . ':' . $_POST['mn'] . ':' . $_POST['ss'];
+        }
+        $_SESSION['schedule_post_date'] = $_POST['post_date'];
+        $_SESSION['schedule_delay'] = $_POST['socialer-tweet-delay'];
 
-            $permalink = get_permalink($postObj->ID);
-            $_POST['socialer_tweet_body'] = trim($_POST['socialer_tweet_body'], ',undefined');
-
-            $response = wp_remote_retrieve_body(
-                wp_remote_request(
-                    self::get_socialer_push_tweet_API_url(),
-                    array(
-                        'method' => 'POST',
-                        'body' => array(
-                            'text'  => $_POST['socialer_tweet_body'] . ' ' . $permalink,
-                            'url'   => $permalink,
-                            'title' => $_POST['post_title']
-                        ),
-                        'sslverify' => true,
-                        'headers'   => array(
-                            self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
-                        )
-                    )
-                )
-            );
-
-            $response = json_decode($response);
-            $errors_messages = '';
-            $errors_messages_presents = false;
-
-            if ( isset($response->result) && isset($response->result->errors) ) {
-                if ( is_array($response->result->errors) ) {
-                    foreach ($response->result->errors as $error) {
-                        if ( isset($error->message) ) {
-                            $errors_messages_presents = true;
-                            $errors_messages .= '<br>- '.$error->message;
-                        }
-                    }
-                }
-            }
-
-            if ( $errors_messages_presents ) {
-                $errors_messages = '<strong>Error occurred during tweet posting!</strong>' . $errors_messages;
-                $_SESSION['soc_notices'] = $errors_messages;
-                $_SESSION['soc_notices_is_error'] = true;
-                $_SESSION['soc_last_tweet_status'] = false;
-                $_SESSION['soc_last_tweet_text'] = $_POST['socialer_tweet_body'];
-                return;
-            }
-
-            // no errors - show information that all OK
-            $screen_name = '';
-            $id_str = '';
-
-            if ( $response && isset($response->result) ) {
-                if ( isset($response->result->user) && isset($response->result->user->screen_name) ) {
-                    $screen_name = $response->result->user->screen_name;
-                }
-
-                if ( isset($response->result->id_str) ) {
-                    $id_str = $response->result->id_str;
-                }
-            }
-
-            if ( $screen_name && $id_str ) {
-                $_SESSION['soc_notices'] = "Tweet Posting was successful. <a href='http://twitter.com/"
-                                                . $screen_name . "/status/"
-                                                . $id_str . "' target='_blank'>View Tweet</a>";
-            }
-
-            $_SESSION['soc_notices_is_error'] = false;
-            $_SESSION['soc_last_tweet_status'] = true;
-            unset($_SESSION['soc_last_tweet_text']);
-        }*/
+        //var_dump($_SESSION); die();
     }
 
     function showMessage()
