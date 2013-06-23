@@ -27,7 +27,7 @@
                     } elseif ( isset($_POST['text']) ) {
                         echo $_POST['text'];
                     } else {
-                        echo $this->post_title;
+                        //echo $this->post_title;
                     }
                     ?></textarea>
                 <p class="howto">Maximum <?php echo $this->tweet_maxlen ?> characters. Available: <span id="socialer-tweet-chars-left"></span>.
@@ -53,6 +53,8 @@
                         </a>
                         <img style="display: none" id="socialer-ajax-push-tweet-wait" src="<?php echo $this->img_plugin_base_url . 'ajax-loader.gif' ?>" />
                     <?php endif ?>
+
+                <?php if (!Socialer::isDraft() && !Socialer::isNewPost()): ?>
                     <hr>
                     <h3>Scheduling</h3>
 
@@ -63,7 +65,7 @@
                         type="checkbox"
                         id="socialer-tweet-schedule"
                         name="socialer-tweet-schedule"
-                        <?php if ( get_post($_REQUEST['post'])->post_status == Socialer::POST_STATUS_FUTURE ): ?>
+                        <?php if ( Socialer::isFuture() ): ?>
                         checked="checked"
                         <?php endif ?>
                     >
@@ -94,6 +96,9 @@
                     </a>
                     <img style="display: none" id="socialer-ajax-schedule-tweet-wait" src="<?php echo $this->img_plugin_base_url . 'ajax-loader.gif' ?>" />
                     <?php endif ?>
+
+                <?php endif // isDraft? ?>
+
                     <hr>
                     <br>
                     <?php if (Socialer_Settings::isShowDashboardButton()): ?>

@@ -12,6 +12,7 @@
         data-post_id=<?php echo get_the_ID() ?>
         data-post_date=<?php echo json_encode(get_post(get_the_ID())->post_date) ?>
         data-post_title="<?php echo get_post(get_the_ID())->post_title ?>"
+        data-post_status="<?php echo get_post(get_the_ID())->post_status ?>"
         data-post_permalink="<?php echo get_permalink($_GET['post']) ?>"
     <?php endif ?>
 

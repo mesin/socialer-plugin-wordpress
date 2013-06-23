@@ -24,6 +24,7 @@ class Socialer {
     const CHARACTERS_RESERVED_PER_MEDIA         = 23;
     const POST_STATUS_FUTURE                    = 'future';
     const POST_STATUS_PUBLISHED                 = 'publish';
+    const POST_STATUS_DRAFT                     = 'draft';
     const TWEET_TYPE_IMMEDIATELY                = '';
     const TWEET_TYPE_SCHEDULE                   = 'on';
     const TWEETING_ON                           = 'on';
@@ -53,12 +54,19 @@ class Socialer {
         // publishing tweet
         add_action('save_post', array($this, 'Dispatch_Tweet'));
 
+        // send tweet if it was draft and now is published
+        add_action( 'draft_to_publish', array($this, 'send_tweet_from_draft_to_publish'));
+
+        // save tweet body associated with post for later sending after becoming published
+        add_action( 'auto-draft_to_draft', array($this, 'save_tweet_from_new_to_draft'));
+
         // ajax calls
         add_action('socialer_ajax_is_user_registered', array( $this, 'ajax_is_user_registered' ) );
         add_action('socialer_ajax_get_register_button', array( $this, 'ajax_get_socialer_register_button' ) );
         add_action('socialer_ajax_get_tweet_box', array( $this, 'ajax_get_tweet_box' ) );
         add_action('socialer_ajax_push_tweet', array( $this, 'ajax_push_tweet' ) );
         add_action('socialer_ajax_get_scheduled_tweet', array( $this, 'ajax_get_scheduled_tweet' ) );
+        add_action('socialer_ajax_get_draft_tweet', array( $this, 'ajax_get_draft_tweet' ) );
         add_action('socialer_ajax_schedule_tweet', array( $this, 'ajax_schedule_tweet' ) );
     }
 
@@ -307,6 +315,102 @@ class Socialer {
     }
 
     /**
+     * @param $post_id
+     * @return string
+     */
+    protected function _get_tweet_for_draft($post_id) {
+        $response = wp_remote_retrieve_body(
+            wp_remote_request(
+                self::get_socialer_get_tweet_draft_API_url(),
+                array(
+                    'method' => 'POST',
+                    'body' => array(
+                        'post_id'   => $post_id,
+                    ),
+                    'sslverify' => true,
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
+                )
+            )
+        );
+
+        return @json_decode($response);
+    }
+
+    /**
+     * @param $post_id
+     * @return string
+     */
+    protected function _remove_tweet_for_draft($post_id) {
+        $response = wp_remote_retrieve_body(
+            wp_remote_request(
+                self::get_socialer_remove_tweet_draft_API_url(),
+                array(
+                    'method' => 'POST',
+                    'body' => array(
+                        'post_id'   => $post_id,
+                    ),
+                    'sslverify' => true,
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
+                )
+            )
+        );
+
+        return $response;
+    }
+
+    public function ajax_get_draft_tweet() {
+        $response = $this->_get_tweet_for_draft($_REQUEST['post']);
+        die(json_encode($response));
+    }
+
+    public function send_tweet_from_draft_to_publish() {
+        $response = $this->_get_tweet_for_draft($_POST['post_ID']);
+
+        if (
+            isset($response->entry->tweet)
+        ) {
+            $_SESSION['send_tweet_on_update'] = true;
+            $_SESSION['soc_last_tweet_text'] = $response->entry->tweet;
+            $result = $this->_remove_tweet_for_draft($_POST['post_ID']);
+            //var_dump($result); die();
+        }
+    }
+
+    public static function isNewPost() {
+        return !get_post(@$_REQUEST['post']);
+    }
+
+    public function save_tweet_from_draft() {
+        $_POST['socialer_tweet_body'] = str_replace(',undefined', '', @$_POST['socialer_tweet_body']);
+
+        $response = wp_remote_retrieve_body(
+            wp_remote_request(
+                self::get_socialer_save_tweet_draft_API_url(),
+                array(
+                    'method' => 'POST',
+                    'body' => array(
+                        'text'      => $_POST['socialer_tweet_body'],
+                        'post_id'   => $_POST['post_ID'],
+                    ),
+                    'sslverify' => true,
+                    'headers'   => array(
+                        self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
+                    )
+                )
+            )
+        );
+
+        $_SESSION['soc_last_tweet_text'] = $_POST['socialer_tweet_body'];
+
+        //var_dump($response); die();
+        return $response;
+    }
+
+    /**
      *  Pushing tweet, or scheduling it ir unscheduling it
      */
     public function Dispatch_Tweet() {
@@ -322,27 +426,51 @@ class Socialer {
 
         $_POST['socialer_tweet_body'] = str_replace(',undefined', '', $_POST['socialer_tweet_body']);
 
-        // schedule
-        //$postObj = get_post(get_the_ID());
-        //if (
-        //    $postObj->post_status == self::POST_STATUS_FUTURE
-        //    || strtotime($_POST['post_date']) > time()
-        //) {
-            if ( $_POST['socialer-tweet-schedule'] == self::TWEET_TYPE_SCHEDULE ) {
-                // or mark for sending right now with ajax!
-                $this->_prepare_tweet_scheduling();
+        // If it is DRAFT - then we can only save drafts
+        if ( self::isDraft() || $_POST['post_status'] == 'draft' ) {
+            $response = $this->_get_tweet_for_draft($_REQUEST['post']);
+
+            if (
+                isset($response->success)
+                && $response->success == true
+                && isset($response->entry->tweet)
+            ) {
+                $_SESSION['send_tweet_on_update'] = true;
+                $_SESSION['soc_last_tweet_text'] = $response->entry->tweet;
             } else {
-                // if we checked of schedule checkbox - then tweet have to be removed
-                $this->unschedule_tweet();
+                $this->save_tweet_from_draft();
             }
-            // ANYWAY if post is scheduled - we do not need to send tweet
-            //return;
-        //}
+
+            return;
+        }
+
+        // otherwise do another staff
+        if ( $_POST['socialer-tweet-schedule'] == self::TWEET_TYPE_SCHEDULE ) {
+            // or mark for sending right now with ajax!
+            $this->_prepare_tweet_scheduling();
+        } else {
+            // if we checked of schedule checkbox - then tweet have to be removed
+            $this->unschedule_tweet();
+        }
 
         // or mark for sending right now with ajax!
         if ( $_POST['socialer-tweeting-enabled'] == self::TWEETING_ON ) {
             $this->_prepare_tweet_sending();
         }
+    }
+
+    /**
+     * @return bool
+     */
+    public static function isDraft() {
+        return (@get_post($_REQUEST['post'])->post_status == self::POST_STATUS_DRAFT);
+    }
+
+    /**
+     * @return bool
+     */
+    public static function isFuture() {
+        return (@get_post($_REQUEST['post'])->post_status == Socialer::POST_STATUS_FUTURE);
     }
 
     protected function _prepare_tweet_sending() {
@@ -506,6 +634,30 @@ class Socialer {
         return self::get_option('SOCIALER_URL')
                . self::get_option('SOCIALER_USER_REGISTERED_API')
                . 'user_wp_uid/' . self::get_user_wp_uid();
+    }
+
+    /**
+     * @return string
+     */
+    public function get_socialer_save_tweet_draft_API_url() {
+        return self::get_option('SOCIALER_URL')
+               . self::get_option('SOCIALER_SAVE_TWEET_DRAFT_API');
+    }
+
+    /**
+     * @return string
+     */
+    public function get_socialer_get_tweet_draft_API_url() {
+        return self::get_option('SOCIALER_URL')
+               . self::get_option('SOCIALER_GET_TWEET_DRAFT_API');
+    }
+
+    /**
+     * @return string
+     */
+    public function get_socialer_remove_tweet_draft_API_url() {
+        return self::get_option('SOCIALER_URL')
+               . self::get_option('SOCIALER_REMOVE_TWEET_DRAFT_API');
     }
 
     /**

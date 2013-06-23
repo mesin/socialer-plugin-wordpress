@@ -34,6 +34,7 @@ $allowed_actions = array(
     'push_tweet',
     'get_scheduled_tweet',
     'schedule_tweet',
+    'get_draft_tweet',
 );
 
 if( in_array($action, $allowed_actions) ) {

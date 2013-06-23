@@ -220,14 +220,35 @@ alljs.socialer.get_scheduled_tweet = function(callback) {
     });
 };
 
+alljs.socialer.get_draft_tweet = function(callback) {
+    var post = alljs.socialer.post();
+
+    jQuery.ajax({
+        url: post.base_request_url + 'get_draft_tweet',
+        dataType: 'json',
+        type: 'post',
+        data: {
+            post: post.id
+        },
+        success: function(response) {
+            if ( response && response.success ) {
+                jQuery('#socialer-tweet-body').val(response.entry.tweet);
+            }
+            if ( typeof callback === 'function') {
+                callback();
+            }
+        }
+    });
+};
+
 alljs.socialer.show_scheduled_tweet_data = function(response) {
     if ( response.success && response.result && response.result.id ) {
 
         if ( jQuery('#alljs-dispatcher-socialer').attr('data-scheduled-tweet') ) {
             // let it be from session! there is correct for scheduling value
         } else {
-            console.log(jQuery('#socialer-tweet-body').val);
-            console.log(response.result.tweet);
+            //console.log(jQuery('#socialer-tweet-body').val);
+            //console.log(response.result.tweet);
             jQuery('#socialer-tweet-body').val(response.result.tweet);
         }
 
@@ -318,26 +339,35 @@ alljs.socialer.get_tweet_box = function() {
     .done(function(response) {
         jQuery('#socialer-container').html(response);
 
+        var function_after_get_schedule_or_draft = function(){
+
+            jQuery('#socialer-container-wait').hide();
+            jQuery('#socialer-container').show();
+
+            // and then get all statistics into widget
+            alljs.socialer.get_statistics_for_story(function(){
+                // then bind checkbox memory
+                alljs.socialer.bind_tweeting_onoff();
+                // bind tweeting functionality
+                alljs.socialer.bind_push_tweet();
+                // bind scheduling functionality
+                alljs.socialer.bind_schedule_tweet();
+                // ind counting of characters in tweet
+                alljs.socialer.bind_count_tweet_characters();
+            });
+        };
+
         // automatically tweet or schedule if no story was before
         alljs.socialer.auto_tweet_or_schedule(function() {
-            // then get scheduled tweet
-            alljs.socialer.get_scheduled_tweet(function(){
+            // then get scheduled tweet or draft tweet body
 
-                jQuery('#socialer-container-wait').hide();
-                jQuery('#socialer-container').show();
 
-                // and then get all statistics into widget
-                alljs.socialer.get_statistics_for_story(function(){
-                    // then bind checkbox memory
-                    alljs.socialer.bind_tweeting_onoff();
-                    // bind tweeting functionality
-                    alljs.socialer.bind_push_tweet();
-                    // bind scheduling functionality
-                    alljs.socialer.bind_schedule_tweet();
-                    // ind counting of characters in tweet
-                    alljs.socialer.bind_count_tweet_characters();
-                });
-            });
+
+            if ( post.status == 'draft' ) {
+                alljs.socialer.get_draft_tweet(function_after_get_schedule_or_draft);
+            } else {
+                alljs.socialer.get_scheduled_tweet(function_after_get_schedule_or_draft);
+            }
         });
     });
 };
@@ -550,7 +580,8 @@ alljs.socialer.post = function() {
         dispatcher.attr('data-schedule-tweet')
             ? dispatcher.attr('data-schedule-delay')
             : jQuery('#socialer-tweet-delay').val()
-        )
+        ),
+    status: dispatcher.attr('data-post_status')
     };
 
     return post;

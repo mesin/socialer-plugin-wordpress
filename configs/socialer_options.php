@@ -10,5 +10,8 @@ return array(
     'SOCIALER_PUSH_TWEET_API'               => 'api/push-tweet/',
     'SOCIALER_SCHEDULED_TWEET_API'          => 'api/get-scheduled-tweet/',
     'SOCIALER_SCHEDULE_TWEET_API'           => 'api/schedule-tweet/',
-    'SOCIALER_UNSCHEDULE_TWEET_API'         => 'api/unschedule-tweet/'
+    'SOCIALER_UNSCHEDULE_TWEET_API'         => 'api/unschedule-tweet/',
+    'SOCIALER_SAVE_TWEET_DRAFT_API'         => 'api/save-tweet-draft/',
+    'SOCIALER_GET_TWEET_DRAFT_API'          => 'api/get-tweet-draft/',
+    'SOCIALER_REMOVE_TWEET_DRAFT_API'       => 'api/remove-tweet-draft/',
 );
