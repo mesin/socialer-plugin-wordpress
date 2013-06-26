@@ -379,6 +379,9 @@ class Socialer {
      */
     public function send_tweet_from_draft_to_publish() {
         $result = $this->move_tweet_drafts_to_schedules($_POST['post_ID']);
+        $_SESSION['soc_notices'] = "In about one minute we'll send your Tweet";
+        $_SESSION['soc_notices_is_error'] = false;
+        $_SESSION['soc_last_tweet_status'] = true;
         //var_dump($result); die();
         return $result;
     }

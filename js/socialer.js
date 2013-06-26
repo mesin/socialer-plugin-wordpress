@@ -253,9 +253,27 @@ alljs.socialer.show_scheduled_tweet_data = function(response) {
         }
 
         var post = alljs.socialer.post();
-        var hours = response.result.hours;
+        var date_time_parts = post.date.split(' ');
+
+        var date_parts = date_time_parts[0].split('-');
+        var time_parts = date_time_parts[1].split(':');
+        var year        = date_parts[0],
+            month       = date_parts[1],
+            day         = date_parts[2];
+
+        var hours       = time_parts[0],
+            minutes     = time_parts[1],
+            seconds     = time_parts[2];
+
+        var s_hours     = response.result.hours;
         var schedule_date = new Date();
-        schedule_date.setTime(Date.parse(post.date));
+
+        schedule_date.setYear(year);
+        schedule_date.setMonth(month);
+        schedule_date.setDate(day);
+        schedule_date.setHours(hours);
+        schedule_date.setMinutes(minutes);
+        schedule_date.setSeconds(seconds);
         schedule_date.setHours(schedule_date.getHours() + hours);
 
         var schedule_msg = 'Tweet scheduled for: <b>';
