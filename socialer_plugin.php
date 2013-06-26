@@ -20,6 +20,8 @@ if ( is_admin() ) {
     $settings->init();
 }
 
+//var_dump($_POST); die();
+
 // init Socialer
 $socialer = new Socialer();
 $socialer->init();

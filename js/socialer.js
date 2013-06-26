@@ -360,11 +360,10 @@ alljs.socialer.get_tweet_box = function() {
         // automatically tweet or schedule if no story was before
         alljs.socialer.auto_tweet_or_schedule(function() {
             // then get scheduled tweet or draft tweet body
-
-
-
-            if ( post.status == 'draft' ) {
+            if ( post.status == 'draft' || post.status == 'auto-draft' ) {
                 alljs.socialer.get_draft_tweet(function_after_get_schedule_or_draft);
+            } else if ( !post.status ) {
+                function_after_get_schedule_or_draft();
             } else {
                 alljs.socialer.get_scheduled_tweet(function_after_get_schedule_or_draft);
             }

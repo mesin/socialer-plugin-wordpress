@@ -16,6 +16,8 @@
         data-post_permalink="<?php echo get_permalink($_GET['post']) ?>"
     <?php endif ?>
 
+    data-user_display_name=<?php echo json_encode(wp_get_current_user()->display_name) ?>
+
     <?php if ( isset($_SESSION['send_tweet_on_update']) ): ?>
         data-autosend-tweet='1'
         <?php unset($_SESSION['send_tweet_on_update']); ?>

@@ -86,7 +86,9 @@ class Socialer {
                 array(
                     'method' => 'POST',
                     'sslverify' => true,
-                    'body' => array('post_id' => $_POST['post_id']),
+                    'body' => array(
+                        'post_id' => $_POST['post_id'],
+                    ),
                     'headers'   => array(
                         self::SOCIALER_AUTH_HEADER => Socialer_Settings::getApiKey()
                     )
@@ -339,17 +341,19 @@ class Socialer {
     }
 
     /**
+     * Moving all drafts to schedules to be sent NOW
      * @param $post_id
      * @return string
      */
-    protected function _remove_tweet_for_draft($post_id) {
+    protected function move_tweet_drafts_to_schedules($post_id) {
         $response = wp_remote_retrieve_body(
             wp_remote_request(
                 self::get_socialer_remove_tweet_draft_API_url(),
                 array(
                     'method' => 'POST',
                     'body' => array(
-                        'post_id'   => $post_id,
+                        'post_id'       => $post_id,
+                        'permalink'     => get_permalink($post_id)
                     ),
                     'sslverify' => true,
                     'headers'   => array(
@@ -362,28 +366,31 @@ class Socialer {
         return $response;
     }
 
+    /**
+     * Getting draft to display it in tweet textarea
+     */
     public function ajax_get_draft_tweet() {
         $response = $this->_get_tweet_for_draft($_REQUEST['post']);
         die(json_encode($response));
     }
 
+    /**
+     * @return string
+     */
     public function send_tweet_from_draft_to_publish() {
-        $response = $this->_get_tweet_for_draft($_POST['post_ID']);
-
-        if (
-            isset($response->entry->tweet)
-        ) {
-            $_SESSION['send_tweet_on_update'] = true;
-            $_SESSION['soc_last_tweet_text'] = $response->entry->tweet;
-            $result = $this->_remove_tweet_for_draft($_POST['post_ID']);
-            //var_dump($result); die();
-        }
+        $result = $this->move_tweet_drafts_to_schedules($_POST['post_ID']);
+        //var_dump($result); die();
+        return $result;
     }
 
     public static function isNewPost() {
         return !get_post(@$_REQUEST['post']);
     }
 
+    /**
+     * Saving tweet on draft saving
+     * @return string
+     */
     public function save_tweet_from_draft() {
         $_POST['socialer_tweet_body'] = str_replace(',undefined', '', @$_POST['socialer_tweet_body']);
 
@@ -395,6 +402,7 @@ class Socialer {
                     'body' => array(
                         'text'      => $_POST['socialer_tweet_body'],
                         'post_id'   => $_POST['post_ID'],
+                        'title'     => $_POST['post_title'],
                     ),
                     'sslverify' => true,
                     'headers'   => array(
@@ -641,7 +649,8 @@ class Socialer {
      */
     public function get_socialer_save_tweet_draft_API_url() {
         return self::get_option('SOCIALER_URL')
-               . self::get_option('SOCIALER_SAVE_TWEET_DRAFT_API');
+               . self::get_option('SOCIALER_SAVE_TWEET_DRAFT_API')
+               . 'user_wp_uid/' . self::get_user_wp_uid();
     }
 
     /**
@@ -649,7 +658,8 @@ class Socialer {
      */
     public function get_socialer_get_tweet_draft_API_url() {
         return self::get_option('SOCIALER_URL')
-               . self::get_option('SOCIALER_GET_TWEET_DRAFT_API');
+               . self::get_option('SOCIALER_GET_TWEET_DRAFT_API')
+               . 'user_wp_uid/' . self::get_user_wp_uid();
     }
 
     /**
@@ -657,7 +667,8 @@ class Socialer {
      */
     public function get_socialer_remove_tweet_draft_API_url() {
         return self::get_option('SOCIALER_URL')
-               . self::get_option('SOCIALER_REMOVE_TWEET_DRAFT_API');
+               . self::get_option('SOCIALER_REMOVE_TWEET_DRAFT_API')
+               . 'user_wp_uid/' . self::get_user_wp_uid();
     }
 
     /**

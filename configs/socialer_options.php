@@ -13,5 +13,5 @@ return array(
     'SOCIALER_UNSCHEDULE_TWEET_API'         => 'api/unschedule-tweet/',
     'SOCIALER_SAVE_TWEET_DRAFT_API'         => 'api/save-tweet-draft/',
     'SOCIALER_GET_TWEET_DRAFT_API'          => 'api/get-tweet-draft/',
-    'SOCIALER_REMOVE_TWEET_DRAFT_API'       => 'api/remove-tweet-draft/',
+    'SOCIALER_REMOVE_TWEET_DRAFT_API'       => 'api/move-drafts-to-schedules/',
 );
