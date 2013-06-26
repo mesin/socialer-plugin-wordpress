@@ -18,18 +18,19 @@
 
     data-user_display_name=<?php echo json_encode(wp_get_current_user()->display_name) ?>
 
-    <?php if ( isset($_SESSION['send_tweet_on_update']) ): ?>
+    <?php if ( Socialer_Session::getInstance()->isSendTweetOnUpdate() ): ?>
         data-autosend-tweet='1'
-        <?php unset($_SESSION['send_tweet_on_update']); ?>
+        <?php Socialer_Session::getInstance()->unsendTweetOnUpdate() ?>
     <?php endif ?>
 
-    <?php if ( isset($_SESSION['schedule_tweet_on_update']) ): ?>
+    <?php if (
+        Socialer_Session::getInstance()->isScheduleTweetOnUpdate()
+        && Socialer_Session::getInstance()->hasScheduleInfo()
+    ): ?>
+        <?php $schedule_info = Socialer_Session::getInstance()->getScheduleInfo(true) ?>
         data-schedule-tweet='1'
-        data-schedule-date='<?php echo $_SESSION['schedule_post_date'] ?>'
-        data-schedule-delay='<?php echo $_SESSION['schedule_delay'] ?>'
-        <?php unset($_SESSION['schedule_tweet_on_update']); ?>
-        <?php unset($_SESSION['schedule_post_date']); ?>
-        <?php unset($_SESSION['schedule_delay']); ?>
+        data-schedule-date='<?php echo $schedule_info['date'] ?>'
+        data-schedule-delay='<?php echo $schedule_info['delay'] ?>'
     <?php endif ?>
 ></div>
 

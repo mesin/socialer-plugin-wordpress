@@ -1,0 +1,1 @@
+<div class="updated" style="padding: 8px"><?php echo $this->message ?></div>

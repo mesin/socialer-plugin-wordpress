@@ -9,10 +9,10 @@
     <div class="inside">
         <div class="tagsdiv" id="post_tweet_box">
             <div class="jaxtag">
-                <div id="socialer-message"><?php echo Socialer::showMessage() ?></div>
+                <div id="socialer-message"><?php echo Socialer_Session::getInstance()->getMessages() ?></div>
                 <div id="socialer-custom-messages" class="updated" style="display: none; padding: 8px;"></div>
-                <h3>Tweet</h3>
-                <p>Enter tweet text without URL:</p>
+                <h3>Tweet from @<?php echo Socialer_Session::getInstance()->getTwitterScreenName() ?>: Enter Tweet text without url.
+                    Tweet will be sent when published.</h3>
                 <textarea
                     name="socialer_tweet_body"
                     rows="3"
@@ -21,9 +21,8 @@
                     id="socialer-tweet-body"
                     maxlength="<?php echo $this->tweet_maxlen ?>"
                     ><?php
-                    if (isset($_SESSION['soc_last_tweet_text']) ) {
-                        echo $_SESSION['soc_last_tweet_text'];
-                        unset($_SESSION['soc_last_tweet_text']);
+                    if ( Socialer_Session::getInstance()->getLastTweetText() ) {
+                        echo Socialer_Session::getInstance()->getLastTweetText(true);
                     } elseif ( isset($_POST['text']) ) {
                         echo $_POST['text'];
                     } else {
@@ -31,7 +30,7 @@
                     }
                     ?></textarea>
                 <p class="howto">Maximum <?php echo $this->tweet_maxlen ?> characters. Available: <span id="socialer-tweet-chars-left"></span>.
-                    Permalink will be added to message automatically
+                    Permalink will be added automatically
                     <?php if (@$_GET['post']): ?>
                         ( <?php echo $this->permalink ?> )
                     <?php else: ?>

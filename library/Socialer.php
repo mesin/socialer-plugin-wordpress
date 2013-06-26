@@ -11,6 +11,7 @@ session_start();
 require_once('Crypt.php');
 require_once('View.php');
 require_once('Settings.php');
+require_once('Session.php');
 
 class Socialer {
 
@@ -39,7 +40,13 @@ class Socialer {
      */
     protected static $view                      = null;
 
+    /**
+     * Initializing plugin
+     */
     public function init() {
+        /**
+         * If socialer is not active - do nothing
+         */
         if ( !Socialer_Settings::isSocialerActive() ) {
             return;
         }
@@ -47,6 +54,10 @@ class Socialer {
         // showing textarea or register button OR message to save API key
         add_action('edit_form_after_editor', array($this, 'show_tweet_box_or_register_button'));
 
+        /**
+         * If no API key has been set up - do nothing, but message to set up key
+         * will be in tweet_box_or_register_button view template
+         */
         if ( !Socialer_Settings::getApiKey() ) {
             return;
         }
@@ -60,16 +71,34 @@ class Socialer {
         // save tweet body associated with post for later sending after becoming published
         add_action( 'auto-draft_to_draft', array($this, 'save_tweet_from_new_to_draft'));
 
-        // ajax calls
+        /**
+         * ajax calls
+         */
+        // user registered API binding
         add_action('socialer_ajax_is_user_registered', array( $this, 'ajax_is_user_registered' ) );
+
+        // getting rendered socialer register button wich is encrypted
         add_action('socialer_ajax_get_register_button', array( $this, 'ajax_get_socialer_register_button' ) );
+
+        // getting tweet box
         add_action('socialer_ajax_get_tweet_box', array( $this, 'ajax_get_tweet_box' ) );
+
+        // pushing tweet on the fly via AJAX
         add_action('socialer_ajax_push_tweet', array( $this, 'ajax_push_tweet' ) );
+
+        // getting tweet that is scheduled
         add_action('socialer_ajax_get_scheduled_tweet', array( $this, 'ajax_get_scheduled_tweet' ) );
+
+        // getting tweet that is drafted
         add_action('socialer_ajax_get_draft_tweet', array( $this, 'ajax_get_draft_tweet' ) );
+
+        // scheduling tweet
         add_action('socialer_ajax_schedule_tweet', array( $this, 'ajax_schedule_tweet' ) );
     }
 
+    /**
+     * Getting scheduled tweet by post_id, API key and user_wp_uid
+     */
     public function ajax_get_scheduled_tweet() {
         self::$view->clearVars();
 
@@ -103,30 +132,14 @@ class Socialer {
      *  This method is used both for adding new schedule and updating existing
      */
     public function ajax_schedule_tweet() {
+        // getting current timestamp to calculate time offset
         $current_timestamp = current_time( 'timestamp' );
+
         // throw how many seconds post will be published
         $post_time = strtotime($_POST['schedule_date']) - $current_timestamp;
+
         // adding tweet delay
         $delay = $post_time + $_POST['schedule_delay'] * 60 * 60;
-
-        /*var_dump($_POST);
-        print('Hours: ' . $_POST['socialer-tweet-delay'].'<br>');
-        print('Post Time Offset + Seconds: ' . $delay.'<br>');
-        print('Post Time Offset: ' . $post_time.'<br>');
-        print('Current_timestamp: ' . $current_timestamp.' (' . date('Y-m-d h:i:s', $current_timestamp) . ')'.'<br>');
-        print('strtotime(post_date): ' . strtotime($_POST['post_date']).'<br>');
-        print('post_date: ' . $_POST['post_date'].'<br>');*/
-
-        /**
-         * Post structure:
-         *
-            text: jQuery('#socialer-tweet-body').val(),
-            url: url,
-            title: title,
-            post_id: post_id,
-            schedule_date: schedule_date,
-            schedule_delay: schedule_delay
-         */
 
         $response = wp_remote_retrieve_body(
             wp_remote_request(
@@ -148,15 +161,15 @@ class Socialer {
                 )
             )
         );
-        //$_SESSION['soc_notices'] .= serialize($response);
-
-        //print_r($response); die();
 
         die($response);
     }
 
     /**
      *  This method is used in all cases when post did not scheduled
+     *  If checkbox does not checked - then tweet will be unscheduled
+     *
+     *  @return string
      */
     public function unschedule_tweet() {
         $response = wp_remote_retrieve_body(
@@ -174,36 +187,14 @@ class Socialer {
                 )
             )
         );
-        //$_SESSION['soc_notices'] .= serialize($response);
+
+        return $response;
     }
 
     /**
-     * @return string
+     *  Pushing tweet via AJAX
+     *  Works both for sending on Update and with AJAX
      */
-    public function get_socialer_scheduled_tweet_url() {
-        return self::get_option('SOCIALER_URL')
-                . self::get_option('SOCIALER_SCHEDULED_TWEET_API')
-                . 'user_wp_uid/' . self::get_user_wp_uid();
-    }
-
-    /**
-     * @return string
-     */
-    public function get_socialer_schedule_tweet_url() {
-        return self::get_option('SOCIALER_URL')
-                . self::get_option('SOCIALER_SCHEDULE_TWEET_API')
-                . 'user_wp_uid/' . self::get_user_wp_uid();
-    }
-
-    /**
-     * @return string
-     */
-    public function get_socialer_unschedule_tweet_url() {
-        return self::get_option('SOCIALER_URL')
-                . self::get_option('SOCIALER_UNSCHEDULE_TWEET_API')
-                . 'user_wp_uid/' . self::get_user_wp_uid();
-    }
-
     public function ajax_push_tweet() {
 
         self::$view->clearVars();
@@ -267,12 +258,13 @@ class Socialer {
 
             if ( $errors_messages_presents ) {
                 $errors_messages = '<strong>Error occurred during tweet posting!</strong>' . $errors_messages;
-                $_SESSION['soc_notices'] = $errors_messages;
-                $_SESSION['soc_notices_is_error'] = true;
-                $_SESSION['soc_last_tweet_status'] = false;
-                $_SESSION['soc_last_tweet_text'] = $_POST['text'];
+                Socialer_Session::getInstance()->addMessage(
+                    $errors_messages,
+                    Socialer_Session::MESSAGE_ERROR
+                );
+                Socialer_Session::getInstance()->setLastTweetText($_POST['text']);
 
-                self::$view->assign('message',  self::showMessage());
+                self::$view->assign('message',  Socialer_Session::getInstance()->getMessages());
                 self::$view->assign('error',    true);
                 die(self::$view->getJSON());
             }
@@ -292,25 +284,27 @@ class Socialer {
             }
 
             if ( $screen_name && $id_str ) {
-                $_SESSION['soc_notices'] = "Tweet Posting was successful. <a href='http://twitter.com/"
+                $message = "Tweet Posting was successful. <a href='http://twitter.com/"
                     . $screen_name . "/status/"
                     . $id_str . "' target='_blank'>View Tweet</a>";
 
-                $_SESSION['soc_notices_is_error'] = false;
-                $_SESSION['soc_last_tweet_status'] = true;
-                unset($_SESSION['soc_last_tweet_text']);
+                Socialer_Session::getInstance()->addMessage(
+                    $message,
+                    Socialer_Session::MESSAGE_INFO
+                );
+                Socialer_Session::getInstance()->clearLastTweetText();
 
-                self::$view->assign('message',  self::showMessage());
+                self::$view->assign('message',  Socialer_Session::getInstance()->getMessages());
                 self::$view->assign('success',  true);
                 die(self::$view->getJSON());
             }
 
-            $_SESSION['soc_notices_is_error'] = true;
-            $_SESSION['soc_last_tweet_status'] = false;
-            $_SESSION['soc_notices'] = 'Something is wrong. Please try again later';
-            die($response);
+            Socialer_Session::getInstance()->addMessage(
+                'Something is wrong. Please try again later',
+                Socialer_Session::MESSAGE_ERROR
+            );
 
-            self::$view->assign('message',  self::showMessage());
+            self::$view->assign('message',  Socialer_Session::getInstance()->getMessages());
             self::$view->assign('error',    true);
             die(self::$view->getJSON());
         }
@@ -379,10 +373,11 @@ class Socialer {
      */
     public function send_tweet_from_draft_to_publish() {
         $result = $this->move_tweet_drafts_to_schedules($_POST['post_ID']);
-        $_SESSION['soc_notices'] = "In about one minute we'll send your Tweet";
-        $_SESSION['soc_notices_is_error'] = false;
-        $_SESSION['soc_last_tweet_status'] = true;
-        //var_dump($result); die();
+        $message = "In about one minute we'll send your Tweet";
+        Socialer_Session::getInstance()->addMessage(
+            $message,
+            Socialer_Session::MESSAGE_INFO
+        );
         return $result;
     }
 
@@ -415,9 +410,8 @@ class Socialer {
             )
         );
 
-        $_SESSION['soc_last_tweet_text'] = $_POST['socialer_tweet_body'];
+        Socialer_Session::getInstance()->setLastTweetText($_POST['socialer_tweet_body']);
 
-        //var_dump($response); die();
         return $response;
     }
 
@@ -447,11 +441,17 @@ class Socialer {
                 && isset($response->entry->tweet)
             ) {
                 $_SESSION['send_tweet_on_update'] = true;
-                $_SESSION['soc_last_tweet_text'] = $response->entry->tweet;
+                Socialer_Session::getInstance()->setLastTweetText($response->entry->tweet);
             } else {
                 $this->save_tweet_from_draft();
             }
 
+            return;
+        }
+
+        // or mark for sending right now with ajax!
+        if ( $_POST['socialer-tweeting-enabled'] == self::TWEETING_ON ) {
+            $this->_prepare_tweet_sending();
             return;
         }
 
@@ -462,11 +462,6 @@ class Socialer {
         } else {
             // if we checked of schedule checkbox - then tweet have to be removed
             $this->unschedule_tweet();
-        }
-
-        // or mark for sending right now with ajax!
-        if ( $_POST['socialer-tweeting-enabled'] == self::TWEETING_ON ) {
-            $this->_prepare_tweet_sending();
         }
     }
 
@@ -484,51 +479,37 @@ class Socialer {
         return (@get_post($_REQUEST['post'])->post_status == Socialer::POST_STATUS_FUTURE);
     }
 
+    /**
+     *  Setting fag to send tweet on update
+     *  And saving last tweet text to display it in box
+     */
     protected function _prepare_tweet_sending() {
-        $_SESSION['send_tweet_on_update'] = true;
-        $_SESSION['soc_last_tweet_text'] = $_POST['socialer_tweet_body'];
+        Socialer_Session::getInstance()->sendTweetOnUpdate();
+        Socialer_Session::getInstance()->setLastTweetText($_POST['socialer_tweet_body']);
     }
 
+    /**
+     *  Preparing plugin for saving schedule
+     */
     protected function _prepare_tweet_scheduling() {
-        $_SESSION['schedule_tweet_on_update'] = true;
-        $_SESSION['soc_last_tweet_text'] = $_POST['socialer_tweet_body'];
-
-        //echo $_SESSION['soc_last_tweet_text'];
-        //die($_POST['socialer_tweet_body']);
+        Socialer_Session::getInstance()->scheduleTweetOnUpdate();
+        Socialer_Session::getInstance()->setLastTweetText($_POST['socialer_tweet_body']);
 
         // WARNING: post date have to be taken from here because on new post it does not presents!
         if ( !isset($_POST['post_date']) ) {
-            $_POST['post_date'] = $_POST['aa'] . '-' . $_POST['mm'] . '-' . $_POST['jj']
-                . ' ' . $_POST['hh'] . ':' . $_POST['mn'] . ':' . $_POST['ss'];
-        }
-        $_SESSION['schedule_post_date'] = $_POST['post_date'];
-        $_SESSION['schedule_delay'] = $_POST['socialer-tweet-delay'];
-
-        //var_dump($_SESSION); die();
-    }
-
-    function showMessage()
-    {
-        $messages = '';
-        if (
-            isset($_SESSION['soc_notices'])
-            && trim($_SESSION['soc_notices'])
-        ) {
-            $errormsg = !(isset($_SESSION['soc_last_tweet_status']) && $_SESSION['soc_last_tweet_status']);
-
-            if ($errormsg) {
-                $messages = '<div class="error" style="padding: 8px">';
-            } else {
-                $messages = '<div class="updated" style="padding: 8px">';
-            }
-
-            $messages .= $_SESSION['soc_notices'] . "</div>";
+            $_POST['post_date'] =
+                        $_POST['aa']
+                . '-' . $_POST['mm']
+                . '-' . $_POST['jj']
+                . ' ' . $_POST['hh']
+                . ':' . $_POST['mn']
+                . ':' . $_POST['ss'];
         }
 
-        unset($_SESSION['soc_notices']);
-        unset($_SESSION['soc_notices_is_error']);
-
-        return $messages;
+        Socialer_Session::getInstance()->saveScheduleInfo(
+            $_POST['post_date'],
+            $_POST['socialer-tweet-delay']
+        );
     }
 
     public function ajax_is_user_registered() {
@@ -545,7 +526,12 @@ class Socialer {
             )
         );
 
-        die($response);
+        $response = json_decode($response);
+        if ( isset($response->twitter_screen_name) ) {
+            Socialer_Session::getInstance()->setTwitterScreenName($response->twitter_screen_name);
+        }
+
+        die(json_encode($response));
     }
 
     /**
@@ -686,6 +672,33 @@ class Socialer {
     /**
      * @return string
      */
+    public function get_socialer_scheduled_tweet_url() {
+        return self::get_option('SOCIALER_URL')
+        . self::get_option('SOCIALER_SCHEDULED_TWEET_API')
+        . 'user_wp_uid/' . self::get_user_wp_uid();
+    }
+
+    /**
+     * @return string
+     */
+    public function get_socialer_schedule_tweet_url() {
+        return self::get_option('SOCIALER_URL')
+        . self::get_option('SOCIALER_SCHEDULE_TWEET_API')
+        . 'user_wp_uid/' . self::get_user_wp_uid();
+    }
+
+    /**
+     * @return string
+     */
+    public function get_socialer_unschedule_tweet_url() {
+        return self::get_option('SOCIALER_URL')
+        . self::get_option('SOCIALER_UNSCHEDULE_TWEET_API')
+        . 'user_wp_uid/' . self::get_user_wp_uid();
+    }
+
+    /**
+     * @return string
+     */
     protected function get_encryption_key() {
         return self::get_option('ENCRYPTION_KEY');
     }
@@ -694,6 +707,10 @@ class Socialer {
      * Loading options
      */
     public function __construct() {
+        self::getView();
+    }
+
+    protected static function initView() {
         if ( empty(self::$options) ) {
             self::$options = require(APPLICATION_PATH . '/configs/socialer_options.php');
         }
@@ -704,6 +721,16 @@ class Socialer {
         self::$view->assign('js_plugin_base_url',       plugins_url( 'js/', SOCIALER_PLUGIN_BASE_FILE));
         self::$view->assign('img_plugin_base_url',      plugins_url( 'img/', SOCIALER_PLUGIN_BASE_FILE));
         self::$view->assign('plugin_base_url',          plugins_url( '/', SOCIALER_PLUGIN_BASE_FILE));
+    }
+
+    /**
+     * @return null|Socialer_View
+     */
+    public static function getView() {
+        if ( !self::$view instanceof Socialer_View ) {
+            self::initView();
+        }
+        return self::$view;
     }
 
     /**

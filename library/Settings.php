@@ -1,5 +1,9 @@
 <?php
-
+/**
+ * Class Socialer_Settings
+ *
+ * TODO: move html to templates
+ */
 class Socialer_Settings {
 
     const GENERAL_SETTINGS_KEY      = 'socialer_options_general';
